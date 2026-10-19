@@ -58,5 +58,5 @@ Si algo falla, registra el mensaje de error y la versión del firmware, pero eli
 
 ## Versión
 
-La versión de firmware preparada es **1.0.0**. La etiqueta `v1.0.0` y su publicación en [GitHub Releases](https://github.com/mapoloco/esp32-cgm/releases) están pendientes. Consulta el [registro de cambios](../../../CHANGELOG.md) para conocer los cambios incluidos.
+La actualización incremental preparada es **1.0.0-rc3.1**. La etiqueta `v1.0.0-rc3.1` y su publicación en [GitHub Releases](https://github.com/mapoloco/esp32-cgm/releases) están pendientes. Consulta el [registro de cambios](../../../CHANGELOG.md) para conocer los cambios incluidos.
 
