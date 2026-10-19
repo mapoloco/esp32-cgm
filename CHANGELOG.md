@@ -9,7 +9,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - **Selectable dashboard layouts:** persist a setting to choose between the original dashboard and a minimalist glucose-focused display with a compact history chart.
 - **Web configuration language selector:** persist the chosen Spanish/English interface language.
-- **Framebuffer screenshot endpoint:** serve the panel's current display as a BMP image at `/screenshot`.
 - **Wi-Fi provisioning clarity:** show the generated setup access-point name and address, and state explicitly that the setup network does not require a password.
 - **Minimal layout date:** show the two-digit year in the date on the minimalist dashboard.
 
