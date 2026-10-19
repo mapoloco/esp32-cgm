@@ -26,6 +26,7 @@
 #include "secrets.h"   // gitignored: WiFi + Nightscout + OTA credentials
 #include "version.h"   // FW_VERSION
 #include "ota_roots.h" // pinned root CAs for OTA transport (and only OTA)
+#include "spanish_font.h" // Latin accents and ñ for the LVGL display
 
 Preferences prefs;
 
@@ -143,7 +144,7 @@ String g_apName       = "";      // "glucoscout-<mac4>"
 String g_wifiScanOpts = "";      // cached <datalist> <option> list
 
 static lv_obj_t *lbl_glucose, *lbl_trend, *lbl_time, *lbl_date;
-static lv_obj_t *lbl_weather, *lbl_wifi,  *lbl_status, *lbl_gmi=nullptr;
+static lv_obj_t *lbl_weather, *lbl_weather_desc=nullptr, *lbl_wifi,  *lbl_status, *lbl_gmi=nullptr;
 static lv_obj_t *lbl_fc[4]={nullptr,nullptr,nullptr,nullptr};   // 4-day forecast columns
 // Swipe pages: 0 = full dashboard, 1 = big glucose, 2 = device, 3 = HA control. Long-press = Settings (any page).
 #define NUM_PAGES 4
@@ -225,18 +226,18 @@ void runSafeMode() {
     lv_obj_t *t=lv_label_create(scr);
     lv_label_set_text(t,"SAFE MODE");
     lv_obj_set_style_text_color(t,lv_color_hex(0xFF3333),0);
-    lv_obj_set_style_text_font(t,&lv_font_montserrat_28,0);
+    lv_obj_set_style_text_font(t,&cgm_font_es_28,0);
     lv_obj_align(t,LV_ALIGN_TOP_MID,0,30);
     lv_obj_t *m=lv_label_create(scr);
     lv_label_set_text(m,"Recovering...\nAuto-checking for a\nfixed update over WiFi.");
     lv_obj_set_style_text_color(m,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(m,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(m,&cgm_font_es_16,0);
     lv_obj_set_style_text_align(m,LV_TEXT_ALIGN_CENTER,0);
     lv_obj_align(m,LV_ALIGN_CENTER,0,0);
     lv_obj_t *ip=lv_label_create(scr);
     lv_label_set_text(ip,("IP: "+WiFi.localIP().toString()).c_str());
     lv_obj_set_style_text_color(ip,lv_color_hex(0x00FF88),0);
-    lv_obj_set_style_text_font(ip,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(ip,&cgm_font_es_16,0);
     lv_obj_align(ip,LV_ALIGN_BOTTOM_MID,0,-20);
     bsp_display_unlock();
     ArduinoOTA.setHostname("CGM-SafeMode");
@@ -248,7 +249,7 @@ void runSafeMode() {
         lv_obj_t *l=lv_label_create(lv_scr_act());
         lv_label_set_text(l,"Updating...\nDo not power off!");
         lv_obj_set_style_text_color(l,lv_color_hex(0xFFFFFF),0);
-        lv_obj_set_style_text_font(l,&lv_font_montserrat_20,0);
+        lv_obj_set_style_text_font(l,&cgm_font_es_20,0);
         lv_obj_center(l);bsp_display_unlock();
     });
     ArduinoOTA.onEnd([](){
@@ -346,19 +347,19 @@ void fetchNightscout(){
     h.end();c.stop();
 }
 String wxDesc(int c){
-    if(c==0)return"Clear";if(c<=3)return"Cloudy";if(c<=48)return"Foggy";
-    if(c<=67)return"Rain";if(c<=77)return"Snow";if(c<=82)return"Showers";
-    if(c<=99)return"Thunder";return"--";
+    if(c==0)return"Despejado";if(c<=3)return"Nublado";if(c<=48)return"Niebla";
+    if(c<=67)return"Lluvia";if(c<=77)return"Nieve";if(c<=82)return"Chubascos";
+    if(c<=99)return"Tormenta";return"--";
 }
-// short condition for the narrow forecast columns
+// Short names fit the four forecast columns.
 const char* wxShort(int c){
-    if(c==0)return"Clr";if(c<=3)return"Cld";if(c<=48)return"Fog";
-    if(c<=67)return"Rain";if(c<=77)return"Snow";if(c<=82)return"Shwr";
-    if(c<=99)return"Strm";return"--";
+    if(c==0)return"Des";if(c<=3)return"Nub";if(c<=48)return"Nie";
+    if(c<=67)return"Llu";if(c<=77)return"Niv";if(c<=82)return"Cha";
+    if(c<=99)return"Tor";return"--";
 }
-// weekday from Y-M-D (Sakamoto); 0=Sun
+// Weekday from Y-M-D (Sakamoto); 0=Sun. Spanish abbreviations.
 const char* dowShort(int y,int m,int d){
-    static const char* nm[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    static const char* nm[]={"Dom","Lun","Mar","Mié","Jue","Vie","Sáb"};
     static const int t[]={0,3,2,5,0,3,5,1,4,6,2,4};
     if(m<1||m>12||d<1)return"--";
     if(m<3)y-=1;
@@ -383,7 +384,7 @@ void fetchWeather(){
         if(wxOk){
             String suffix=cfg.isCelsius?"C":"F";
             String w=String((int)doc["current"]["temperature_2m"].as<float>())
-                    +suffix+"  "+wxDesc(doc["current"]["weather_code"].as<int>());
+                    +(cfg.isCelsius?"°C":"°F")+"  "+wxDesc(doc["current"]["weather_code"].as<int>());
             JsonArray dt=doc["daily"]["time"], dc=doc["daily"]["weather_code"];
             JsonArray dmax=doc["daily"]["temperature_2m_max"], dmin=doc["daily"]["temperature_2m_min"];
             xSemaphoreTake(dataMutex,portMAX_DELAY);
@@ -938,7 +939,7 @@ static void addSettingRow(lv_obj_t *parent,int idx,const char *label,int *value,
     lv_obj_t *lbl=lv_label_create(row);
     lv_label_set_text(lbl,label);
     lv_obj_set_style_text_color(lbl,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(lbl,&lv_font_montserrat_14,0);
+    lv_obj_set_style_text_font(lbl,&cgm_font_es_14,0);
     lv_obj_align(lbl,LV_ALIGN_LEFT_MID,4,0);
 
     lv_obj_t *bm=lv_btn_create(row);
@@ -948,11 +949,11 @@ static void addSettingRow(lv_obj_t *parent,int idx,const char *label,int *value,
     lv_obj_set_style_radius(bm,6,0);
     lv_obj_add_event_cb(bm,settingBtn_cb,LV_EVENT_CLICKED,(void*)(intptr_t)(idx<<1));
     lv_obj_t *lm=lv_label_create(bm);
-    lv_label_set_text(lm,"-");lv_obj_set_style_text_font(lm,&lv_font_montserrat_20,0);lv_obj_center(lm);
+    lv_label_set_text(lm,"-");lv_obj_set_style_text_font(lm,&cgm_font_es_20,0);lv_obj_center(lm);
 
     lv_obj_t *vl=lv_label_create(row);
     lv_obj_set_style_text_color(vl,lv_color_hex(0xFFDD00),0);
-    lv_obj_set_style_text_font(vl,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(vl,&cgm_font_es_16,0);
     lv_obj_align(vl,LV_ALIGN_RIGHT_MID,-58,0);
     lv_obj_set_width(vl,46);
     lv_obj_set_style_text_align(vl,LV_TEXT_ALIGN_CENTER,0);
@@ -966,7 +967,7 @@ static void addSettingRow(lv_obj_t *parent,int idx,const char *label,int *value,
     lv_obj_set_style_radius(bp,6,0);
     lv_obj_add_event_cb(bp,settingBtn_cb,LV_EVENT_CLICKED,(void*)(intptr_t)((idx<<1)|1));
     lv_obj_t *lp=lv_label_create(bp);
-    lv_label_set_text(lp,"+");lv_obj_set_style_text_font(lp,&lv_font_montserrat_20,0);lv_obj_center(lp);
+    lv_label_set_text(lp,"+");lv_obj_set_style_text_font(lp,&cgm_font_es_20,0);lv_obj_center(lp);
 }
 
 // Wipe WiFi + all settings and reboot into the setup hotspot. Shared by the
@@ -978,11 +979,11 @@ void factoryResetNow(){
 }
 
 static const char* rssiQuality(int r){
-    if(r>=-55)return "Excellent";
-    if(r>=-67)return "Good";
-    if(r>=-75)return "Fair";
-    if(r>=-85)return "Weak";
-    return "Very weak";
+    if(r>=-55)return "Excelente";
+    if(r>=-67)return "Buena";
+    if(r>=-75)return "Regular";
+    if(r>=-85)return "Débil";
+    return "Muy débil";
 }
 
 static void factoryCancel_cb(lv_event_t *e){
@@ -994,7 +995,7 @@ static void factoryConfirm_cb(lv_event_t *e){
         lv_obj_t *m=lv_label_create(factory_confirm);
         lv_label_set_text(m,"Erasing...\nRebooting to setup");
         lv_obj_set_style_text_color(m,lv_color_hex(0xFFFFFF),0);
-        lv_obj_set_style_text_font(m,&lv_font_montserrat_18,0);
+        lv_obj_set_style_text_font(m,&cgm_font_es_18,0);
         lv_obj_set_style_text_align(m,LV_TEXT_ALIGN_CENTER,0);
         lv_obj_center(m);
     }
@@ -1015,7 +1016,7 @@ static void showFactoryConfirm(){
     lv_obj_t *m=lv_label_create(factory_confirm);
     lv_label_set_text(m,"Factory Reset?\nErases WiFi + all settings\nand reboots to the setup hotspot.");
     lv_obj_set_style_text_color(m,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(m,&lv_font_montserrat_14,0);
+    lv_obj_set_style_text_font(m,&cgm_font_es_14,0);
     lv_obj_set_style_text_align(m,LV_TEXT_ALIGN_CENTER,0);
     lv_obj_align(m,LV_ALIGN_TOP_MID,0,16);
 
@@ -1025,7 +1026,7 @@ static void showFactoryConfirm(){
     lv_obj_add_event_cb(bc,factoryCancel_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *lc=lv_label_create(bc);lv_label_set_text(lc,"Cancel");
     lv_obj_set_style_text_color(lc,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(lc,&lv_font_montserrat_16,0);lv_obj_center(lc);
+    lv_obj_set_style_text_font(lc,&cgm_font_es_16,0);lv_obj_center(lc);
 
     lv_obj_t *be=lv_btn_create(factory_confirm);
     lv_obj_set_size(be,165,46);lv_obj_align(be,LV_ALIGN_BOTTOM_RIGHT,-6,-8);
@@ -1033,7 +1034,7 @@ static void showFactoryConfirm(){
     lv_obj_add_event_cb(be,factoryConfirm_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *le=lv_label_create(be);lv_label_set_text(le,"Erase");
     lv_obj_set_style_text_color(le,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(le,&lv_font_montserrat_16,0);lv_obj_center(le);
+    lv_obj_set_style_text_font(le,&cgm_font_es_16,0);lv_obj_center(le);
 }
 static void factoryBtn_cb(lv_event_t *e){ showFactoryConfirm(); }
 
@@ -1052,7 +1053,7 @@ void showSettingsMenu(){
     lv_obj_t *t=lv_label_create(settings_modal);
     lv_label_set_text(t,"SETTINGS");
     lv_obj_set_style_text_color(t,lv_color_hex(0xE74C3C),0);
-    lv_obj_set_style_text_font(t,&lv_font_montserrat_18,0);
+    lv_obj_set_style_text_font(t,&cgm_font_es_18,0);
     lv_obj_align(t,LV_ALIGN_TOP_MID,0,2);
 
     int listY=28;
@@ -1086,7 +1087,7 @@ void showSettingsMenu(){
     lv_obj_t *frl=lv_label_create(fr);
     lv_label_set_text(frl,"Factory Reset");
     lv_obj_set_style_text_color(frl,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(frl,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(frl,&cgm_font_es_16,0);
     lv_obj_center(frl);
 
     lv_obj_t *btn=lv_btn_create(settings_modal);
@@ -1098,7 +1099,7 @@ void showSettingsMenu(){
     lv_obj_t *bl=lv_label_create(btn);
     lv_label_set_text(bl,"Save & Close");
     lv_obj_set_style_text_color(bl,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(bl,&lv_font_montserrat_18,0);
+    lv_obj_set_style_text_font(bl,&cgm_font_es_18,0);
     lv_obj_center(bl);
 
     bsp_display_unlock();
@@ -1124,11 +1125,11 @@ void createDashboardUI(){
     lv_obj_add_flag(tb,LV_OBJ_FLAG_EVENT_BUBBLE);
     lbl_date=lv_label_create(tb);lv_label_set_text(lbl_date,"Loading...");
     lv_obj_set_style_text_color(lbl_date,lv_color_hex(0x8899AA),0);
-    lv_obj_set_style_text_font(lbl_date,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(lbl_date,&cgm_font_es_16,0);
     lv_obj_align(lbl_date,LV_ALIGN_LEFT_MID,12,0);
     lbl_time=lv_label_create(tb);lv_label_set_text(lbl_time,"--:-- --");
     lv_obj_set_style_text_color(lbl_time,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(lbl_time,&lv_font_montserrat_22,0);
+    lv_obj_set_style_text_font(lbl_time,&cgm_font_es_22,0);
     lv_obj_align(lbl_time,LV_ALIGN_RIGHT_MID,-12,0);
     lbl_wifi=nullptr;   // WiFi signal moved off the main screen → Settings menu (long-press)
 
@@ -1141,18 +1142,18 @@ void createDashboardUI(){
     lv_obj_set_style_pad_all(gc,0,0);
     lv_obj_t*gt=lv_label_create(gc);lv_label_set_text(gt,"BLOOD GLUCOSE  mg/dL  (3h trend)");
     lv_obj_set_style_text_color(gt,lv_color_hex(0x556677),0);
-    lv_obj_set_style_text_font(gt,&lv_font_montserrat_12,0);lv_obj_align(gt,LV_ALIGN_TOP_LEFT,12,6);
+    lv_obj_set_style_text_font(gt,&cgm_font_es_12,0);lv_obj_align(gt,LV_ALIGN_TOP_LEFT,12,6);
     lbl_glucose=lv_label_create(gc);lv_label_set_text(lbl_glucose,"---");
     lv_obj_set_style_text_color(lbl_glucose,lv_color_hex(0x00FF88),0);
-    lv_obj_set_style_text_font(lbl_glucose,&lv_font_montserrat_48,0);
+    lv_obj_set_style_text_font(lbl_glucose,&cgm_font_es_48,0);
     lv_obj_align(lbl_glucose,LV_ALIGN_TOP_LEFT,12,18);
     lbl_trend=lv_label_create(gc);lv_label_set_text(lbl_trend,"->  +0");
     lv_obj_set_style_text_color(lbl_trend,lv_color_hex(0xFFDD00),0);
-    lv_obj_set_style_text_font(lbl_trend,&lv_font_montserrat_28,0);
+    lv_obj_set_style_text_font(lbl_trend,&cgm_font_es_28,0);
     lv_obj_align(lbl_trend,LV_ALIGN_TOP_RIGHT,-12,30);
     lbl_gmi=lv_label_create(gc);lv_label_set_text(lbl_gmi,"GMI --");
     lv_obj_set_style_text_color(lbl_gmi,lv_color_hex(0x66AAFF),0);
-    lv_obj_set_style_text_font(lbl_gmi,&lv_font_montserrat_14,0);
+    lv_obj_set_style_text_font(lbl_gmi,&cgm_font_es_14,0);
     lv_obj_align(lbl_gmi,LV_ALIGN_TOP_RIGHT,-12,4);
     // Sparkline canvas at bottom of glucose card
     if(!spark_buf){
@@ -1165,39 +1166,49 @@ void createDashboardUI(){
         lv_canvas_fill_bg(spark_canvas,lv_color_hex(0x0A1622),LV_OPA_COVER);
     }
 
-    lv_obj_t*wc=lv_obj_create(scr);lv_obj_set_size(wc,222,95);lv_obj_set_pos(wc,10,222);
+    lv_obj_t*wc=lv_obj_create(scr);lv_obj_set_size(wc,224,95);lv_obj_set_pos(wc,10,222);
     lv_obj_set_style_bg_color(wc,lv_color_hex(0x0A2540),0);
     lv_obj_set_style_border_color(wc,lv_color_hex(0x1A3A5C),0);
     lv_obj_set_style_border_width(wc,2,0);lv_obj_set_style_radius(wc,16,0);
     lv_obj_clear_flag(wc,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(wc,LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_t*wt=lv_label_create(wc);
-    String wtTxt="WEATHER - "+cfg.city;wtTxt.toUpperCase();
+    String wtTxt="TIEMPO - "+cfg.city;wtTxt.toUpperCase();
     lv_label_set_text(wt,wtTxt.c_str());
     lv_obj_set_style_text_color(wt,lv_color_hex(0x556677),0);
-    lv_obj_set_style_text_font(wt,&lv_font_montserrat_10,0);lv_obj_align(wt,LV_ALIGN_TOP_LEFT,10,8);
-    lbl_weather=lv_label_create(wc);lv_label_set_text(lbl_weather,"--F");
-    lv_obj_set_style_text_color(lbl_weather,lv_color_hex(0x00C8FF),0);
-    lv_obj_set_style_text_font(lbl_weather,&lv_font_montserrat_22,0);
-    lv_obj_align(lbl_weather,LV_ALIGN_LEFT_MID,10,8);
+    lv_obj_set_style_text_font(wt,&cgm_font_es_10,0);
+    lv_obj_set_pos(wt,10,6);                 // aligned with the forecast heading
 
-    lv_obj_t*fk=lv_obj_create(scr);lv_obj_set_size(fk,238,95);lv_obj_set_pos(fk,242,222);
+    lbl_weather=lv_label_create(wc);lv_label_set_text(lbl_weather,"--°C");
+    lv_obj_set_width(lbl_weather,204);
+    lv_obj_set_style_text_align(lbl_weather,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_style_text_color(lbl_weather,lv_color_hex(0x00C8FF),0);
+    lv_obj_set_style_text_font(lbl_weather,&cgm_font_es_22,0);
+    lv_obj_align(lbl_weather,LV_ALIGN_TOP_MID,0,28);
+    lbl_weather_desc=lv_label_create(wc);lv_label_set_text(lbl_weather_desc,"--");
+    lv_obj_set_width(lbl_weather_desc,204);
+    lv_obj_set_style_text_align(lbl_weather_desc,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_style_text_color(lbl_weather_desc,lv_color_hex(0x00C8FF),0);
+    lv_obj_set_style_text_font(lbl_weather_desc,&cgm_font_es_18,0);
+    lv_obj_align(lbl_weather_desc,LV_ALIGN_TOP_MID,0,57);
+
+    lv_obj_t*fk=lv_obj_create(scr);lv_obj_set_size(fk,226,95);lv_obj_set_pos(fk,244,222);
     lv_obj_set_style_bg_color(fk,lv_color_hex(0x0A2540),0);
     lv_obj_set_style_border_color(fk,lv_color_hex(0x1A3A5C),0);
     lv_obj_set_style_border_width(fk,2,0);lv_obj_set_style_radius(fk,16,0);
     lv_obj_clear_flag(fk,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(fk,LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_set_style_pad_all(fk,0,0);
-    lv_obj_t*ft=lv_label_create(fk);lv_label_set_text(ft,"4-DAY FORECAST");
+    lv_obj_t*ft=lv_label_create(fk);lv_label_set_text(ft,"PREVISIÓN 4 DÍAS");
     lv_obj_set_style_text_color(ft,lv_color_hex(0x556677),0);
-    lv_obj_set_style_text_font(ft,&lv_font_montserrat_10,0);lv_obj_align(ft,LV_ALIGN_TOP_LEFT,10,6);
+    lv_obj_set_style_text_font(ft,&cgm_font_es_10,0);lv_obj_set_pos(ft,10,6);
     for(int i=0;i<4;i++){
         lbl_fc[i]=lv_label_create(fk);
-        lv_obj_set_width(lbl_fc[i],54);
+        lv_obj_set_width(lbl_fc[i],52);
         lv_obj_set_style_text_align(lbl_fc[i],LV_TEXT_ALIGN_CENTER,0);
         lv_obj_set_style_text_color(lbl_fc[i],lv_color_hex(0xC8D6E5),0);
-        lv_obj_set_style_text_font(lbl_fc[i],&lv_font_montserrat_12,0);
-        lv_obj_set_pos(lbl_fc[i],6+i*58,26);
+        lv_obj_set_style_text_font(lbl_fc[i],&cgm_font_es_12,0);
+        lv_obj_set_pos(lbl_fc[i],3+i*54,26); // 4 columns fit inside the card
         lv_label_set_text(lbl_fc[i],"--\n--\n--");
     }
 
@@ -1208,12 +1219,12 @@ void createDashboardUI(){
     lv_obj_add_flag(sb,LV_OBJ_FLAG_EVENT_BUBBLE);
     lbl_status=lv_label_create(sb);lv_label_set_text(lbl_status,"Connecting...");
     lv_obj_set_style_text_color(lbl_status,lv_color_hex(0x445566),0);
-    lv_obj_set_style_text_font(lbl_status,&lv_font_montserrat_12,0);
+    lv_obj_set_style_text_font(lbl_status,&cgm_font_es_12,0);
     lv_obj_align(lbl_status,LV_ALIGN_CENTER,0,0);
     lv_obj_t*ip=lv_label_create(sb);
     lv_label_set_text(ip,WiFi.localIP().toString().c_str());
     lv_obj_set_style_text_color(ip,lv_color_hex(0x334455),0);
-    lv_obj_set_style_text_font(ip,&lv_font_montserrat_10,0);
+    lv_obj_set_style_text_font(ip,&cgm_font_es_10,0);
     lv_obj_align(ip,LV_ALIGN_RIGHT_MID,-8,0);
 }
 
@@ -1222,19 +1233,19 @@ void buildBigGlucosePage(){
     lv_obj_t*scr=lv_scr_act();
     lbl_glucose=lv_label_create(scr);lv_label_set_text(lbl_glucose,"---");
     lv_obj_set_style_text_color(lbl_glucose,lv_color_hex(0x00FF88),0);
-    lv_obj_set_style_text_font(lbl_glucose,&lv_font_montserrat_48,0);
+    lv_obj_set_style_text_font(lbl_glucose,&cgm_font_es_48,0);
     lv_obj_align(lbl_glucose,LV_ALIGN_TOP_MID,0,44);
     lv_obj_t*u=lv_label_create(scr);lv_label_set_text(u,"mg/dL");
     lv_obj_set_style_text_color(u,lv_color_hex(0x556677),0);
-    lv_obj_set_style_text_font(u,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(u,&cgm_font_es_16,0);
     lv_obj_align(u,LV_ALIGN_TOP_MID,0,104);
     lbl_trend=lv_label_create(scr);lv_label_set_text(lbl_trend,"->  +0");
     lv_obj_set_style_text_color(lbl_trend,lv_color_hex(0xFFDD00),0);
-    lv_obj_set_style_text_font(lbl_trend,&lv_font_montserrat_28,0);
+    lv_obj_set_style_text_font(lbl_trend,&cgm_font_es_28,0);
     lv_obj_align(lbl_trend,LV_ALIGN_TOP_MID,0,134);
     lbl_gmi=lv_label_create(scr);lv_label_set_text(lbl_gmi,"GMI --");
     lv_obj_set_style_text_color(lbl_gmi,lv_color_hex(0x66AAFF),0);
-    lv_obj_set_style_text_font(lbl_gmi,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(lbl_gmi,&cgm_font_es_16,0);
     lv_obj_align(lbl_gmi,LV_ALIGN_TOP_MID,0,176);
     if(!spark_buf) spark_buf=(lv_color_t*)heap_caps_malloc(SPARK_W*SPARK_H*sizeof(lv_color_t),MALLOC_CAP_SPIRAM);
     if(spark_buf){
@@ -1248,29 +1259,29 @@ void buildBigGlucosePage(){
 // ---- Page 2: device / Home Assistant status ----
 void buildDevicePage(){
     lv_obj_t*scr=lv_scr_act();
-    lv_obj_t*h=lv_label_create(scr);lv_label_set_text(h,"DEVICE");
+    lv_obj_t*h=lv_label_create(scr);lv_label_set_text(h,"DISPOSITIVO");
     lv_obj_set_style_text_color(h,lv_color_hex(0xE74C3C),0);
-    lv_obj_set_style_text_font(h,&lv_font_montserrat_18,0);
+    lv_obj_set_style_text_font(h,&cgm_font_es_18,0);
     lv_obj_align(h,LV_ALIGN_TOP_MID,0,22);
     lbl_dev_ip=lv_label_create(scr);lv_label_set_text(lbl_dev_ip,"IP:  --");
     lv_obj_set_style_text_color(lbl_dev_ip,lv_color_hex(0xC8D6E5),0);
-    lv_obj_set_style_text_font(lbl_dev_ip,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(lbl_dev_ip,&cgm_font_es_16,0);
     lv_obj_align(lbl_dev_ip,LV_ALIGN_TOP_LEFT,22,72);
     lbl_dev_sig=lv_label_create(scr);lv_label_set_text(lbl_dev_sig,"WiFi:  --");
     lv_obj_set_style_text_color(lbl_dev_sig,lv_color_hex(0xC8D6E5),0);
-    lv_obj_set_style_text_font(lbl_dev_sig,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(lbl_dev_sig,&cgm_font_es_16,0);
     lv_obj_align(lbl_dev_sig,LV_ALIGN_TOP_LEFT,22,108);
     lbl_dev_ha=lv_label_create(scr);lv_label_set_text(lbl_dev_ha,"Home Assistant:  --");
     lv_obj_set_style_text_color(lbl_dev_ha,lv_color_hex(0x66AAFF),0);
-    lv_obj_set_style_text_font(lbl_dev_ha,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(lbl_dev_ha,&cgm_font_es_16,0);
     lv_obj_align(lbl_dev_ha,LV_ALIGN_TOP_LEFT,22,144);
     lv_obj_t*fw=lv_label_create(scr);lv_label_set_text(fw,(String("Firmware ")+FW_VERSION).c_str());
     lv_obj_set_style_text_color(fw,lv_color_hex(0x556677),0);
-    lv_obj_set_style_text_font(fw,&lv_font_montserrat_14,0);
+    lv_obj_set_style_text_font(fw,&cgm_font_es_14,0);
     lv_obj_align(fw,LV_ALIGN_BOTTOM_LEFT,22,-30);
-    lv_obj_t*hint=lv_label_create(scr);lv_label_set_text(hint,"Long-press for Settings");
+    lv_obj_t*hint=lv_label_create(scr);lv_label_set_text(hint,"Mantén pulsado para ajustes");
     lv_obj_set_style_text_color(hint,lv_color_hex(0x445566),0);
-    lv_obj_set_style_text_font(hint,&lv_font_montserrat_12,0);
+    lv_obj_set_style_text_font(hint,&cgm_font_es_12,0);
     lv_obj_align(hint,LV_ALIGN_BOTTOM_RIGHT,-12,-30);
 }
 
@@ -1280,7 +1291,7 @@ void buildHaPage(){
     lv_obj_t*scr=lv_scr_act();
     lv_obj_t*h=lv_label_create(scr);lv_label_set_text(h,"HOME ASSISTANT");
     lv_obj_set_style_text_color(h,lv_color_hex(0x41BDF5),0);
-    lv_obj_set_style_text_font(h,&lv_font_montserrat_18,0);
+    lv_obj_set_style_text_font(h,&cgm_font_es_18,0);
     lv_obj_align(h,LV_ALIGN_TOP_MID,0,22);
     struct { const char*l; uint32_t col; uint8_t bit; } B[5]={
         {"Announce Glucose",0x2D6CDF,BTN_ANNOUNCE},
@@ -1299,7 +1310,7 @@ void buildHaPage(){
         lv_obj_add_event_cb(b,haBtn_cb,LV_EVENT_CLICKED,(void*)(intptr_t)B[i].bit);
         lv_obj_t*l=lv_label_create(b);lv_label_set_text(l,B[i].l);
         lv_obj_set_style_text_color(l,lv_color_hex(0xFFFFFF),0);
-        lv_obj_set_style_text_font(l,&lv_font_montserrat_16,0);
+        lv_obj_set_style_text_font(l,&cgm_font_es_16,0);
         lv_obj_center(l);
     }
 }
@@ -1365,21 +1376,27 @@ void updateDashboardUI(){
         lv_obj_set_style_text_color(lbl_glucose,glucoseColor(gv),0);
     }
     if(lbl_trend) lv_label_set_text(lbl_trend,(ta+(gd>=0?" +"+String(gd):" "+String(gd))).c_str());
-    if(lbl_weather) lv_label_set_text(lbl_weather,ws.c_str());
+    if(lbl_weather){
+        int sep=ws.indexOf("  ");
+        String temp=(sep>=0)?ws.substring(0,sep):ws;
+        String desc=(sep>=0)?ws.substring(sep+2):String("");
+        lv_label_set_text(lbl_weather,temp.c_str());
+        if(lbl_weather_desc)lv_label_set_text(lbl_weather_desc,desc.c_str());
+    }
     if(lbl_wifi) lv_label_set_text(lbl_wifi,(String(WiFi.RSSI())+" dBm").c_str());
     drawSparkline();
     // Device/HA page (page 2) live fields
     bool wifiUp=WiFi.isConnected();
-    if(lbl_dev_ip) lv_label_set_text(lbl_dev_ip,("IP:  "+(wifiUp?WiFi.localIP().toString():String("not connected"))).c_str());
+    if(lbl_dev_ip) lv_label_set_text(lbl_dev_ip,("IP:  "+(wifiUp?WiFi.localIP().toString():String("sin conexión"))).c_str());
     if(lbl_dev_sig){
         if(wifiUp){int r=WiFi.RSSI();lv_label_set_text(lbl_dev_sig,("WiFi:  "+String(r)+" dBm  ("+rssiQuality(r)+")").c_str());}
         else lv_label_set_text(lbl_dev_sig,"WiFi:  --");
     }
     if(lbl_dev_ha){
         String hh=mqttHostEff();
-        if(hh.length()==0)  lv_label_set_text(lbl_dev_ha,"Home Assistant:  not set up");
-        else if(g_mqttUp)   lv_label_set_text(lbl_dev_ha,("Home Assistant:  connected\n("+hh+")").c_str());
-        else                lv_label_set_text(lbl_dev_ha,("Home Assistant:  connecting...\n("+hh+")").c_str());
+        if(hh.length()==0)  lv_label_set_text(lbl_dev_ha,"Home Assistant:  no configurado");
+        else if(g_mqttUp)   lv_label_set_text(lbl_dev_ha,("Home Assistant:  conectado\n("+hh+")").c_str());
+        else                lv_label_set_text(lbl_dev_ha,("Home Assistant:  conectando...\n("+hh+")").c_str());
     }
     struct tm ti;
     if(lbl_status && getLocalTime(&ti)){
@@ -1863,35 +1880,35 @@ void showProvisioningScreen(){   // on-panel instructions (LVGL)
     lv_obj_t *t=lv_label_create(scr);
     lv_label_set_text(t,"Wi-Fi Setup");
     lv_obj_set_style_text_color(t,lv_color_hex(0x00C8FF),0);
-    lv_obj_set_style_text_font(t,&lv_font_montserrat_28,0);
+    lv_obj_set_style_text_font(t,&cgm_font_es_28,0);
     lv_obj_align(t,LV_ALIGN_TOP_MID,0,34);
     lv_obj_t *m=lv_label_create(scr);
     lv_label_set_text(m,"On your phone or laptop, open\nWi-Fi settings and join:");
     lv_obj_set_style_text_color(m,lv_color_hex(0xC8D6E5),0);
-    lv_obj_set_style_text_font(m,&lv_font_montserrat_16,0);
+    lv_obj_set_style_text_font(m,&cgm_font_es_16,0);
     lv_obj_set_style_text_align(m,LV_TEXT_ALIGN_CENTER,0);
     lv_obj_align(m,LV_ALIGN_TOP_MID,0,86);
     lv_obj_t *ap=lv_label_create(scr);
     lv_label_set_text(ap,g_apName.c_str());
     lv_obj_set_style_text_color(ap,lv_color_hex(0x00FF88),0);
-    lv_obj_set_style_text_font(ap,&lv_font_montserrat_22,0);
+    lv_obj_set_style_text_font(ap,&cgm_font_es_22,0);
     lv_obj_align(ap,LV_ALIGN_CENTER,0,0);
     // An open network makes people hesitate or hunt for a password that does not
     // exist. Say so directly, right under the name they are about to tap.
     lv_obj_t *np=lv_label_create(scr);
     lv_label_set_text(np,"No password needed");
     lv_obj_set_style_text_color(np,lv_color_hex(0xC8D6E5),0);
-    lv_obj_set_style_text_font(np,&lv_font_montserrat_14,0);
+    lv_obj_set_style_text_font(np,&cgm_font_es_14,0);
     lv_obj_align(np,LV_ALIGN_CENTER,0,26);
     lv_obj_t *u=lv_label_create(scr);
     String _apurl="Then open:  http://"+WiFi.softAPIP().toString(); lv_label_set_text(u,_apurl.c_str());
     lv_obj_set_style_text_color(u,lv_color_hex(0xFFDD00),0);
-    lv_obj_set_style_text_font(u,&lv_font_montserrat_18,0);
+    lv_obj_set_style_text_font(u,&cgm_font_es_18,0);
     lv_obj_align(u,LV_ALIGN_CENTER,0,48);
     lv_obj_t *h=lv_label_create(scr);
     lv_label_set_text(h,"The setup page usually opens by itself.");
     lv_obj_set_style_text_color(h,lv_color_hex(0x8899AA),0);
-    lv_obj_set_style_text_font(h,&lv_font_montserrat_12,0);
+    lv_obj_set_style_text_font(h,&cgm_font_es_12,0);
     lv_obj_align(h,LV_ALIGN_BOTTOM_MID,0,-22);
     bsp_display_unlock();
 }
@@ -1951,7 +1968,7 @@ void setup(){
     bsp_display_lock(100);
     lv_obj_t*sp=lv_label_create(lv_scr_act());lv_label_set_text(sp,"Starting up...");
     lv_obj_set_style_text_color(sp,lv_color_hex(0xFFFFFF),0);
-    lv_obj_set_style_text_font(sp,&lv_font_montserrat_20,0);lv_obj_center(sp);
+    lv_obj_set_style_text_font(sp,&cgm_font_es_20,0);lv_obj_center(sp);
     bsp_display_unlock();
     loadConfig();                                    // need creds BEFORE we connect
     WiFi.mode(WIFI_STA);
@@ -1972,7 +1989,7 @@ void setup(){
         esp_task_wdt_delete(NULL);bsp_display_lock(100);lv_obj_clean(lv_scr_act());
         lv_obj_t*l=lv_label_create(lv_scr_act());lv_label_set_text(l,"OTA Update...\nDo not power off!");
         lv_obj_set_style_text_color(l,lv_color_hex(0xFFFFFF),0);
-        lv_obj_set_style_text_font(l,&lv_font_montserrat_20,0);lv_obj_center(l);bsp_display_unlock();
+        lv_obj_set_style_text_font(l,&cgm_font_es_20,0);lv_obj_center(l);bsp_display_unlock();
     });
     ArduinoOTA.onEnd([](){Serial.println("OTA done");});
     ArduinoOTA.onError([](ota_error_t e){Serial.println("OTA err: "+String(e));});
@@ -2029,7 +2046,10 @@ void loop(){
             struct tm ti;
             if(getLocalTime(&ti)){
                 char tb[20],db[30];
-                strftime(tb,sizeof(tb),"%I:%M %p",&ti);strftime(db,sizeof(db),"%a, %b %d",&ti);
+                strftime(tb,sizeof(tb),"%I:%M %p",&ti);
+                static const char* dias[]={"Dom","Lun","Mar","Mié","Jue","Vie","Sáb"};
+                static const char* meses[]={"ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"};
+                snprintf(db,sizeof(db),"%s, %02d %s",dias[ti.tm_wday],ti.tm_mday,meses[ti.tm_mon]);
                 if(bsp_display_lock(200)){if(lbl_time)lv_label_set_text(lbl_time,tb);if(lbl_date)lv_label_set_text(lbl_date,db);bsp_display_unlock();}
                 static int lHr=-1;if(ti.tm_hour!=lHr){lHr=ti.tm_hour;applyBrightness(ti.tm_hour);}
             }
