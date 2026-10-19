@@ -1177,7 +1177,7 @@ void createDashboardUI(){
     lv_obj_clear_flag(wc,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(wc,LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_t*wt=lv_label_create(wc);
-    String wtTxt="WEATHER - "+cfg.city;wtTxt.toUpperCase();
+    String wtTxt=String(uiText("WEATHER - ","TIEMPO - "))+cfg.city;wtTxt.toUpperCase();
     lv_label_set_text(wt,wtTxt.c_str());
     lv_obj_set_style_text_color(wt,lv_color_hex(0x556677),0);
     lv_obj_set_style_text_font(wt,&lv_font_montserrat_10,0);lv_obj_align(wt,LV_ALIGN_TOP_LEFT,10,8);
@@ -1211,7 +1211,7 @@ void createDashboardUI(){
     lv_obj_set_style_border_width(sb,0,0);lv_obj_set_style_radius(sb,0,0);
     lv_obj_clear_flag(sb,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(sb,LV_OBJ_FLAG_EVENT_BUBBLE);
-    lbl_status=lv_label_create(sb);lv_label_set_text(lbl_status,"Connecting...");
+    lbl_status=lv_label_create(sb);lv_label_set_text(lbl_status,uiText("Connecting...","Conectando..."));
     lv_obj_set_style_text_color(lbl_status,lv_color_hex(0x445566),0);
     lv_obj_set_style_text_font(lbl_status,&lv_font_montserrat_12,0);
     lv_obj_align(lbl_status,LV_ALIGN_CENTER,0,0);
@@ -1273,7 +1273,7 @@ void buildDevicePage(){
     lv_obj_set_style_text_color(fw,lv_color_hex(0x556677),0);
     lv_obj_set_style_text_font(fw,&lv_font_montserrat_14,0);
     lv_obj_align(fw,LV_ALIGN_BOTTOM_LEFT,22,-30);
-    lv_obj_t*hint=lv_label_create(scr);lv_label_set_text(hint,"Long-press for Settings");
+    lv_obj_t*hint=lv_label_create(scr);lv_label_set_text(hint,uiText("Long-press for Settings","Mantén pulsado para ajustes"));
     lv_obj_set_style_text_color(hint,lv_color_hex(0x445566),0);
     lv_obj_set_style_text_font(hint,&lv_font_montserrat_12,0);
     lv_obj_align(hint,LV_ALIGN_BOTTOM_RIGHT,-12,-30);
@@ -1958,7 +1958,7 @@ void setup(){
     bsp_display_cfg_t dcfg={.lvgl_port_cfg=ESP_LVGL_PORT_INIT_CONFIG(),.buffer_size=320*480,.rotate=LV_DISP_ROT_90};
     bsp_display_start_with_config(&dcfg);bsp_display_brightness_set(100);
     bsp_display_lock(100);
-    lv_obj_t*sp=lv_label_create(lv_scr_act());lv_label_set_text(sp,"Starting up...");
+    lv_obj_t*sp=lv_label_create(lv_scr_act());lv_label_set_text(sp,uiText("Starting up...","Iniciando..."));
     lv_obj_set_style_text_color(sp,lv_color_hex(0xFFFFFF),0);
     lv_obj_set_style_text_font(sp,&lv_font_montserrat_20,0);lv_obj_center(sp);
     bsp_display_unlock();
