@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Initial English/Spanish language selector and persisted language preference for the GUITION 3.5-inch dashboard and web configuration page.
+
+### Fixed
+- Repositioned the dashboard footer inside the 480×320 landscape display bounds and reduced the weather/forecast cards vertically to avoid clipping and overlap.
+
 ## [1.0.0-rc3] - 2026-08-04
 
 ### Security
