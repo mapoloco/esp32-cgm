@@ -1170,7 +1170,7 @@ void createDashboardUI(){
         lv_canvas_fill_bg(spark_canvas,lv_color_hex(0x0A1622),LV_OPA_COVER);
     }
 
-    lv_obj_t*wc=lv_obj_create(scr);lv_obj_set_size(wc,222,95);lv_obj_set_pos(wc,10,222);
+    lv_obj_t*wc=lv_obj_create(scr);lv_obj_set_size(wc,222,64);lv_obj_set_pos(wc,10,220);
     lv_obj_set_style_bg_color(wc,lv_color_hex(0x0A2540),0);
     lv_obj_set_style_border_color(wc,lv_color_hex(0x1A3A5C),0);
     lv_obj_set_style_border_width(wc,2,0);lv_obj_set_style_radius(wc,16,0);
@@ -1186,7 +1186,7 @@ void createDashboardUI(){
     lv_obj_set_style_text_font(lbl_weather,&lv_font_montserrat_22,0);
     lv_obj_align(lbl_weather,LV_ALIGN_LEFT_MID,10,8);
 
-    lv_obj_t*fk=lv_obj_create(scr);lv_obj_set_size(fk,238,95);lv_obj_set_pos(fk,242,222);
+    lv_obj_t*fk=lv_obj_create(scr);lv_obj_set_size(fk,238,64);lv_obj_set_pos(fk,242,220);
     lv_obj_set_style_bg_color(fk,lv_color_hex(0x0A2540),0);
     lv_obj_set_style_border_color(fk,lv_color_hex(0x1A3A5C),0);
     lv_obj_set_style_border_width(fk,2,0);lv_obj_set_style_radius(fk,16,0);
@@ -1195,18 +1195,18 @@ void createDashboardUI(){
     lv_obj_set_style_pad_all(fk,0,0);
     lv_obj_t*ft=lv_label_create(fk);lv_label_set_text(ft,uiText("4-DAY FORECAST","PREVISIÓN 4 DÍAS"));
     lv_obj_set_style_text_color(ft,lv_color_hex(0x556677),0);
-    lv_obj_set_style_text_font(ft,&lv_font_montserrat_10,0);lv_obj_align(ft,LV_ALIGN_TOP_LEFT,10,6);
+    lv_obj_set_style_text_font(ft,&lv_font_montserrat_10,0);lv_obj_align(ft,LV_ALIGN_TOP_LEFT,10,4);
     for(int i=0;i<4;i++){
         lbl_fc[i]=lv_label_create(fk);
         lv_obj_set_width(lbl_fc[i],54);
         lv_obj_set_style_text_align(lbl_fc[i],LV_TEXT_ALIGN_CENTER,0);
         lv_obj_set_style_text_color(lbl_fc[i],lv_color_hex(0xC8D6E5),0);
         lv_obj_set_style_text_font(lbl_fc[i],&lv_font_montserrat_12,0);
-        lv_obj_set_pos(lbl_fc[i],6+i*58,26);
+        lv_obj_set_pos(lbl_fc[i],6+i*58,19);
         lv_label_set_text(lbl_fc[i],"--\n--\n--");
     }
 
-    lv_obj_t*sb=lv_obj_create(scr);lv_obj_set_size(sb,480,28);lv_obj_set_pos(sb,0,327);
+    lv_obj_t*sb=lv_obj_create(scr);lv_obj_set_size(sb,480,28);lv_obj_set_pos(sb,0,292);
     lv_obj_set_style_bg_color(sb,lv_color_hex(0x0D1B2A),0);
     lv_obj_set_style_border_width(sb,0,0);lv_obj_set_style_radius(sb,0,0);
     lv_obj_clear_flag(sb,LV_OBJ_FLAG_SCROLLABLE);
