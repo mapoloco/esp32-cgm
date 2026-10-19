@@ -13,11 +13,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - **Weather interface in Spanish:** current conditions, four-day forecast labels, and weekday abbreviations are translated; temperature display uses explicit `°C` or `°F` units.
 - **Weather card layout:** current temperature and condition are displayed separately and centered; the four-day forecast columns and card widths/positions were adjusted to fit the 320×480 dashboard.
-- **Date display:** the dashboard date uses Spanish weekday abbreviations and abbreviated Spanish month names.
+- **Date display:** the dashboard date is shown as day plus uppercase Spanish month abbreviation (for example, `19 OCT`). The current code does not include the year.
 - **Connection/status wording:** Wi-Fi signal quality and selected device/status messages are translated into Spanish.
 - **GMI presentation:** the dashboard shows `GMI 30d X.X%` instead of displaying the 30-day and 90-day values together. The 90-day sample count/calculation remains in the firmware.
-- **Trend arrow visibility:** graphical trend-arrow strokes are thicker (6 px normally and 8 px for `DoubleUp`/`DoubleDown`), retaining the existing yellow color.
+- **Trend arrows:** replaced text-based arrow characters with three LVGL line objects (shaft and two arrowhead strokes). The arrow uses persistent point buffers because LVGL retains the pointers passed to `lv_line_set_points()`. Strokes are 5 px and yellow (`0xFFDD00`), matching the glucose delta color.
 - **Settings scrollbar behavior:** the scrollbar is enabled when Settings opens and during touch/scroll interaction, then hidden after 5 seconds without activity. Touch activity on child controls is bubbled to the settings list so it can reset the timeout.
+- **OTA recovery:** restored the recovery path after repeated boot failures: attempt rollback to the last-good firmware, then enter the Wi-Fi internet-OTA safe mode if rollback cannot recover the device.
 
 ## [1.0.0-rc3] - 2026-08-04
 
