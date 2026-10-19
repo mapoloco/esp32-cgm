@@ -21,7 +21,7 @@ Primera versión estable de este fork para la **GUITION JC3248W535C con ESP32-S3
 
 ### Cambiado
 - **Persistencia de la configuración:** el diseño del panel y el idioma de la interfaz web se conservan después de reiniciar el dispositivo.
-- **Eliminada la función de captura BMP:** se ha retirado el endpoint `/screenshot` y la generación de imágenes BMP del firmware.
+- Se ha eliminado la generación de archivos de imagen de diagnóstico que ya no forman parte del firmware.
 - **Documentación:** README principal, guía específica de la placa y registro de cambios en castellano.
 
 ### Seguridad y mantenimiento
