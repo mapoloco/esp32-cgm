@@ -8,9 +8,9 @@ Aquí se documentan los cambios importantes de este proyecto. El formato se basa
 
 Los cambios futuros se anotarán aquí.
 
-## [1.0.0] - 2026-10-19
+## [1.0.0-rc3.1] - 2026-10-19
 
-Versión estable preparada para este fork y la **GUITION JC3248W535C con ESP32-S3**. La compilación y el funcionamiento en el hardware objetivo han sido validados por el mantenedor. La etiqueta `v1.0.0` y la publicación en GitHub Releases están pendientes.
+Actualización incremental sobre la versión anterior **1.0.0-rc3**, preparada para este fork y la **GUITION JC3248W535C con ESP32-S3**. La compilación y el funcionamiento en el hardware objetivo han sido validados por el mantenedor. Esta publicación conserva la numeración de versiones preliminares; no es una versión estable 1.0.0.
 
 ### Añadido
 - **Diseños de panel seleccionables:** se puede elegir y guardar entre el panel original y una vista minimalista centrada en la glucosa, con un gráfico compacto del historial.
