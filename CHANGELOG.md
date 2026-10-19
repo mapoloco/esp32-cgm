@@ -7,34 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- **Selectable dashboard presentation:** add a persisted display mode setting to switch between the original dashboard and a minimalist glucose-focused layout.
-- **Web interface language selection:** save the selected web configuration language and provide Spanish/English UI text.
-- **Device screenshot endpoint:** add `/screenshot`, which serves a BMP snapshot rendered from the LVGL framebuffer.
-- **Minimal dashboard glucose chart:** add a compact history chart and dedicated glucose/trend layout for the alternate display mode.
-- **Wi-Fi provisioning guidance:** show the generated setup access-point name, local setup address, and a clear notice that the setup network is open.
+- **Selectable dashboard layouts:** persist a setting to choose between the original dashboard and a minimalist glucose-focused display with a compact history chart.
+- **Web configuration language selector:** persist the chosen Spanish/English interface language.
+- **Framebuffer screenshot endpoint:** serve the panel's current display as a BMP image at `/screenshot`.
+- **Wi-Fi provisioning clarity:** show the generated setup access-point name and address, and state explicitly that the setup network does not require a password.
+- **Minimal layout date:** show the two-digit year in the date on the minimalist dashboard.
 
 ### Changed
-- **Minimal dashboard date:** include the two-digit year alongside the day and Spanish month abbreviation in the minimalist dashboard.
-- **Configuration persistence:** save and restore the dashboard presentation mode and web interface language alongside existing settings.
+- **Configuration persistence:** retain the selected dashboard layout and web language after restart.
 
-
-### Added
-- **Spanish display glyph support** in `boards/esp32-s3/guition-3.5in/spanish_font.h`, extending the LVGL Montserrat-based fonts to render Spanish accented vowels, ñ, ü, and additional Latin-1 accented characters. The dashboard, settings, provisioning, and status screens use these fonts.
-- **Selectable clock format** in the web configuration page under **Display Timing**: 24-hour (`17:52`) or 12-hour (`5:52 PM`). The preference is saved in device settings and restored after reboot.
-
-### Changed
-- **Weather interface in Spanish:** current conditions, four-day forecast labels, and weekday abbreviations are translated; temperature display uses explicit `°C` or `°F` units.
-- **Weather card layout:** current temperature and condition are displayed separately and centered; the four-day forecast columns and card widths/positions were adjusted to fit the 320×480 dashboard.
-- **Date display:** the dashboard date is shown as day plus uppercase Spanish month abbreviation (for example, `19 OCT`). The current code does not include the year.
-- **Glucose and trend wording:** translated the dashboard's visible glucose/trend labels into Spanish.
-- **Clock styling:** the time text uses the same color as the date for a consistent header.
-- **Dashboard layout:** preserved the original card arrangement while applying the Spanish display changes.
-- **Dashboard scrolling:** removed the unnecessary scrollbar from the dashboard view; the separate Settings scrollbar behavior remains documented below.
-- **Connection/status wording:** Wi-Fi signal quality and selected device/status messages are translated into Spanish.
-- **GMI presentation:** the dashboard shows `GMI 30d X.X%` instead of displaying the 30-day and 90-day values together. The 90-day sample count/calculation remains in the firmware.
-- **Trend arrows:** replaced text-based arrow characters with three LVGL line objects (shaft and two arrowhead strokes). The arrow uses persistent point buffers because LVGL retains the pointers passed to `lv_line_set_points()`. Strokes are 5 px and yellow (`0xFFDD00`), matching the glucose delta color.
-- **Settings scrollbar behavior:** the scrollbar is enabled when Settings opens and during touch/scroll interaction, then hidden after 5 seconds without activity. Touch activity on child controls is bubbled to the settings list so it can reset the timeout.
-- **OTA recovery:** restored the recovery path after repeated boot failures: attempt rollback to the last-good firmware, then enter the Wi-Fi internet-OTA safe mode if rollback cannot recover the device.
+### Existing changes
+- **Spanish display glyphs** in `spanish_font.h`, selectable 12/24-hour clock, Spanish weather and glucose/trend labels, dashboard layout refinements, persistent trend-arrow geometry, dashboard and Settings scrollbar behavior, and OTA rollback/safe-mode recovery remain documented below in this unreleased section.
 
 ## [1.0.0-rc3] - 2026-08-04
 
