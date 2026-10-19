@@ -1,22 +1,34 @@
 # Registro de cambios
 
-Aquí se documentan todos los cambios importantes de este proyecto. El formato se basa en
+Aquí se documentan los cambios importantes de este proyecto. El formato se basa en
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y el proyecto sigue
 [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
+
+Los cambios futuros se anotarán aquí.
+
+## [1.0.0] - 2026-10-19
+
+Primera versión estable de este fork para la **GUITION JC3248W535C con ESP32-S3**. La compilación y el funcionamiento en el hardware objetivo han sido validados por el mantenedor.
 
 ### Añadido
 - **Diseños de panel seleccionables:** se puede elegir y guardar entre el panel original y una vista minimalista centrada en la glucosa, con un gráfico compacto del historial.
 - **Selector de idioma en la configuración web:** permite elegir entre español e inglés y conserva la selección.
 - **Información más clara al configurar el Wi-Fi:** muestra el nombre del punto de acceso de configuración y su dirección, e indica expresamente que la red de configuración no requiere contraseña.
 - **Fecha en el diseño minimalista:** muestra el año con dos cifras.
+- **Interfaz en castellano:** caracteres acentuados, letra ñ, etiquetas y opciones en español.
 
 ### Cambiado
 - **Persistencia de la configuración:** el diseño del panel y el idioma de la interfaz web se conservan después de reiniciar el dispositivo.
+- **Eliminada la función de captura BMP:** se ha retirado el endpoint `/screenshot` y la generación de imágenes BMP del firmware.
+- **Documentación:** README principal, guía específica de la placa y registro de cambios en castellano.
 
-### Cambios anteriores aún sin publicar
-- **Caracteres españoles en pantalla** mediante `spanish_font.h`; reloj de 12/24 horas seleccionable; etiquetas de tiempo, meteorología, glucosa y tendencia en español; mejoras en los diseños del panel; geometría persistente de las flechas de tendencia; comportamiento de las barras de desplazamiento del panel y de Ajustes; y recuperación de OTA con reversión y modo seguro.
+### Seguridad y mantenimiento
+- Se mantienen las protecciones de credenciales: `secrets.h` debe permanecer local y no debe publicarse.
+- Se conserva el historial de cambios anteriores de la línea 1.0.0-rc.
+
+## Versiones anteriores
 
 ## [1.0.0-rc3] - 2026-08-04
 
@@ -56,9 +68,6 @@ Primera **versión candidata**. Añade integración con Home Assistant, actualiz
 - **MQTT no llegaba a conectar (estado -2):** el nombre del servidor del broker se conserva ahora en un búfer persistente; la biblioteca guardaba el puntero en vez de una copia.
 - **La página de configuración podía truncarse** cuando algunos campos estaban vacíos.
 
-### Notas
-- **Versión candidata** (`1.0.0-rc1`). No es un dispositivo médico; consulta el [aviso médico](DISCLAIMER.md).
-
 ## [1.0.0-beta.2] - 2026-06-25
 
 ### Corregido
@@ -81,7 +90,10 @@ Primera versión **beta pública**.
 - **Beta:** las interfaces y el diseño pueden cambiar antes de la versión `1.0.0`. No es un dispositivo médico; consulta el [aviso médico](DISCLAIMER.md).
 - La compatibilidad con ESP32-P4 (GUITION de 10,1 pulgadas) está en desarrollo y no forma parte de esta versión.
 
-[Sin publicar]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-rc1...HEAD
-[1.0.0-rc1]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-beta.2...v1.0.0-rc1
-[1.0.0-beta.2]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-beta.1...v1.0.0-beta.2
-[1.0.0-beta.1]: https://github.com/getglucoscout/esp32-cgm/releases/tag/v1.0.0-beta.1
+[Sin publicar]: https://github.com/mapoloco/esp32-cgm/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/mapoloco/esp32-cgm/releases/tag/v1.0.0
+[1.0.0-rc3]: https://github.com/mapoloco/esp32-cgm/compare/v1.0.0-rc2...v1.0.0-rc3
+[1.0.0-rc2]: https://github.com/mapoloco/esp32-cgm/compare/v1.0.0-rc1...v1.0.0-rc2
+[1.0.0-rc1]: https://github.com/mapoloco/esp32-cgm/compare/v1.0.0-beta.2...v1.0.0-rc1
+[1.0.0-beta.2]: https://github.com/mapoloco/esp32-cgm/compare/v1.0.0-beta.1...v1.0.0-beta.2
+[1.0.0-beta.1]: https://github.com/mapoloco/esp32-cgm/releases/tag/v1.0.0-beta.1
