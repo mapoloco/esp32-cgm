@@ -144,6 +144,7 @@ String g_apName       = "";      // "glucoscout-<mac4>"
 String g_wifiScanOpts = "";      // cached <datalist> <option> list
 
 static lv_obj_t *lbl_glucose, *lbl_trend, *lbl_time, *lbl_date;
+static lv_obj_t *trend_arrow_line, *trend_arrow_head1, *trend_arrow_head2;
 static lv_obj_t *lbl_weather, *lbl_weather_desc=nullptr, *lbl_wifi,  *lbl_status, *lbl_gmi=nullptr;
 static lv_obj_t *lbl_fc[4]={nullptr,nullptr,nullptr,nullptr};   // 4-day forecast columns
 // Swipe pages: 0 = full dashboard, 1 = big glucose, 2 = device, 3 = HA control. Long-press = Settings (any page).
@@ -312,10 +313,33 @@ lv_color_t glucoseColor(int v){
 }
 bool isCritical(int v){return(v>0)&&(v<cfg.critLow||v>cfg.critHigh);}
 String trendToArrow(String d){
-    if(d=="DoubleUp")     return"^^";if(d=="SingleUp")    return"^";
-    if(d=="FortyFiveUp")  return"/^";if(d=="Flat")         return"->";
-    if(d=="FortyFiveDown")return"v/";if(d=="SingleDown")   return"v";
-    if(d=="DoubleDown")   return"vv";return"-";
+    if(d=="DoubleUp")     return"DoubleUp";if(d=="SingleUp")    return"SingleUp";
+    if(d=="FortyFiveUp")  return"FortyFiveUp";if(d=="Flat")         return"Flat";
+    if(d=="FortyFiveDown")return"FortyFiveDown";if(d=="SingleDown")   return"SingleDown";
+    if(d=="DoubleDown")   return"DoubleDown";return"Unknown";
+}
+void setTrendArrow(const String &trend){
+    if(!trend_arrow_line || !trend_arrow_head1 || !trend_arrow_head2) return;
+    lv_point_t shaft[2], head1[2], head2[2];
+    if(trend=="SingleUp" || trend=="DoubleUp"){
+        shaft[0]={19,31}; shaft[1]={19,7};
+        head1[0]={8,18}; head1[1]={19,7}; head2[0]={30,18}; head2[1]={19,7};
+    } else if(trend=="FortyFiveUp"){
+        shaft[0]={7,30}; shaft[1]={30,7};
+        head1[0]={15,7}; head1[1]={30,7}; head2[0]={30,22}; head2[1]={30,7};
+    } else if(trend=="SingleDown" || trend=="DoubleDown"){
+        shaft[0]={19,7}; shaft[1]={19,31};
+        head1[0]={8,20}; head1[1]={19,31}; head2[0]={30,20}; head2[1]={19,31};
+    } else if(trend=="FortyFiveDown"){
+        shaft[0]={7,7}; shaft[1]={30,30};
+        head1[0]={30,15}; head1[1]={30,30}; head2[0]={15,30}; head2[1]={30,30};
+    } else {
+        shaft[0]={5,19}; shaft[1]={33,19};
+        head1[0]={23,9}; head1[1]={33,19}; head2[0]={23,29}; head2[1]={33,19};
+    }
+    lv_line_set_points(trend_arrow_line,shaft,2);
+    lv_line_set_points(trend_arrow_head1,head1,2);
+    lv_line_set_points(trend_arrow_head2,head2,2);
 }
 
 // ================================================================
@@ -1125,9 +1149,9 @@ void createDashboardUI(){
     lv_obj_add_flag(tb,LV_OBJ_FLAG_EVENT_BUBBLE);
     lbl_date=lv_label_create(tb);lv_label_set_text(lbl_date,"Loading...");
     lv_obj_set_style_text_color(lbl_date,lv_color_hex(0x8899AA),0);
-    lv_obj_set_style_text_font(lbl_date,&cgm_font_es_16,0);
+    lv_obj_set_style_text_font(lbl_date,&cgm_font_es_22,0);
     lv_obj_align(lbl_date,LV_ALIGN_LEFT_MID,12,0);
-    lbl_time=lv_label_create(tb);lv_label_set_text(lbl_time,"--:-- --");
+    lbl_time=lv_label_create(tb);lv_label_set_text(lbl_time,"--:--");
     lv_obj_set_style_text_color(lbl_time,lv_color_hex(0xFFFFFF),0);
     lv_obj_set_style_text_font(lbl_time,&cgm_font_es_22,0);
     lv_obj_align(lbl_time,LV_ALIGN_RIGHT_MID,-12,0);
@@ -1147,10 +1171,22 @@ void createDashboardUI(){
     lv_obj_set_style_text_color(lbl_glucose,lv_color_hex(0x00FF88),0);
     lv_obj_set_style_text_font(lbl_glucose,&cgm_font_es_48,0);
     lv_obj_align(lbl_glucose,LV_ALIGN_TOP_LEFT,12,18);
-    lbl_trend=lv_label_create(gc);lv_label_set_text(lbl_trend,"->  +0");
+    trend_arrow_line=lv_line_create(gc);trend_arrow_head1=lv_line_create(gc);trend_arrow_head2=lv_line_create(gc);
+    lv_obj_set_style_line_color(trend_arrow_line,lv_color_hex(0xFFDD00),0);
+    lv_obj_set_style_line_color(trend_arrow_head1,lv_color_hex(0xFFDD00),0);
+    lv_obj_set_style_line_color(trend_arrow_head2,lv_color_hex(0xFFDD00),0);
+    lv_obj_set_style_line_width(trend_arrow_line,5,0);
+    lv_obj_set_style_line_width(trend_arrow_head1,5,0);
+    lv_obj_set_style_line_width(trend_arrow_head2,5,0);
+    lv_obj_set_style_line_rounded(trend_arrow_line,true,0);
+    lv_obj_set_style_line_rounded(trend_arrow_head1,true,0);
+    lv_obj_set_style_line_rounded(trend_arrow_head2,true,0);
+    lv_obj_set_pos(trend_arrow_line,330,25);lv_obj_set_pos(trend_arrow_head1,330,25);lv_obj_set_pos(trend_arrow_head2,330,25);
+    lbl_trend=lv_label_create(gc);lv_label_set_text(lbl_trend,"+0");
     lv_obj_set_style_text_color(lbl_trend,lv_color_hex(0xFFDD00),0);
     lv_obj_set_style_text_font(lbl_trend,&cgm_font_es_28,0);
     lv_obj_align(lbl_trend,LV_ALIGN_TOP_RIGHT,-12,30);
+    setTrendArrow("Unknown");
     lbl_gmi=lv_label_create(gc);lv_label_set_text(lbl_gmi,"GMI --");
     lv_obj_set_style_text_color(lbl_gmi,lv_color_hex(0x66AAFF),0);
     lv_obj_set_style_text_font(lbl_gmi,&cgm_font_es_14,0);
@@ -1240,7 +1276,7 @@ void buildBigGlucosePage(){
     lv_obj_set_style_text_color(u,lv_color_hex(0x556677),0);
     lv_obj_set_style_text_font(u,&cgm_font_es_16,0);
     lv_obj_align(u,LV_ALIGN_TOP_MID,0,104);
-    lbl_trend=lv_label_create(scr);lv_label_set_text(lbl_trend,"->  +0");
+    lbl_trend=lv_label_create(scr);lv_label_set_text(lbl_trend,"+0");
     lv_obj_set_style_text_color(lbl_trend,lv_color_hex(0xFFDD00),0);
     lv_obj_set_style_text_font(lbl_trend,&cgm_font_es_28,0);
     lv_obj_align(lbl_trend,LV_ALIGN_TOP_MID,0,134);
@@ -1335,6 +1371,7 @@ void addPageDots(){
 // ---- Build the currently-selected page (clears the screen first) ----
 void buildPage(){
     lbl_glucose=lbl_trend=lbl_time=lbl_date=lbl_weather=lbl_wifi=lbl_status=lbl_gmi=nullptr;
+    trend_arrow_line=trend_arrow_head1=trend_arrow_head2=nullptr;
     for(int i=0;i<4;i++)lbl_fc[i]=nullptr;
     lbl_dev_ip=lbl_dev_sig=lbl_dev_ha=nullptr;
     spark_canvas=nullptr;
@@ -1376,7 +1413,11 @@ void updateDashboardUI(){
         lv_label_set_text(lbl_glucose,gv>0?String(gv).c_str():"---");
         lv_obj_set_style_text_color(lbl_glucose,glucoseColor(gv),0);
     }
-    if(lbl_trend) lv_label_set_text(lbl_trend,(ta+(gd>=0?" +"+String(gd):" "+String(gd))).c_str());
+    if(lbl_trend) {
+        String delta=(gd>=0?"+":"")+String(gd);
+        lv_label_set_text(lbl_trend,delta.c_str());
+    }
+    setTrendArrow(ta);
     if(lbl_weather){
         int sep=ws.indexOf("  ");
         String temp=(sep>=0)?ws.substring(0,sep):ws;
@@ -2047,10 +2088,9 @@ void loop(){
             struct tm ti;
             if(getLocalTime(&ti)){
                 char tb[20],db[30];
-                strftime(tb,sizeof(tb),"%I:%M %p",&ti);
-                static const char* dias[]={"Dom","Lun","Mar","Mié","Jue","Vie","Sáb"};
-                static const char* meses[]={"ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"};
-                snprintf(db,sizeof(db),"%s, %02d %s",dias[ti.tm_wday],ti.tm_mday,meses[ti.tm_mon]);
+                strftime(tb,sizeof(tb),"%H:%M",&ti);
+                static const char* meses[]={"ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"};
+                snprintf(db,sizeof(db),"%02d %s",ti.tm_mday,meses[ti.tm_mon]);
                 if(bsp_display_lock(200)){if(lbl_time)lv_label_set_text(lbl_time,tb);if(lbl_date)lv_label_set_text(lbl_date,db);bsp_display_unlock();}
                 static int lHr=-1;if(ti.tm_hour!=lHr){lHr=ti.tm_hour;applyBrightness(ti.tm_hour);}
             }
