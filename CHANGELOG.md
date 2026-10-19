@@ -14,6 +14,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Weather interface in Spanish:** current conditions, four-day forecast labels, and weekday abbreviations are translated; temperature display uses explicit `°C` or `°F` units.
 - **Weather card layout:** current temperature and condition are displayed separately and centered; the four-day forecast columns and card widths/positions were adjusted to fit the 320×480 dashboard.
 - **Date display:** the dashboard date is shown as day plus uppercase Spanish month abbreviation (for example, `19 OCT`). The current code does not include the year.
+- **Glucose and trend wording:** translated the dashboard's visible glucose/trend labels into Spanish.
+- **Clock styling:** the time text uses the same color as the date for a consistent header.
+- **Dashboard layout:** preserved the original card arrangement while applying the Spanish display changes.
+- **Dashboard scrolling:** removed the unnecessary scrollbar from the dashboard view; the separate Settings scrollbar behavior remains documented below.
 - **Connection/status wording:** Wi-Fi signal quality and selected device/status messages are translated into Spanish.
 - **GMI presentation:** the dashboard shows `GMI 30d X.X%` instead of displaying the 30-day and 90-day values together. The 90-day sample count/calculation remains in the firmware.
 - **Trend arrows:** replaced text-based arrow characters with three LVGL line objects (shaft and two arrowhead strokes). The arrow uses persistent point buffers because LVGL retains the pointers passed to `lv_line_set_points()`. Strokes are 5 px and yellow (`0xFFDD00`), matching the glucose delta color.
