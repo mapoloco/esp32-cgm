@@ -1170,6 +1170,7 @@ void createDashboardUI(){
     lv_obj_set_style_bg_color(wc,lv_color_hex(0x0A2540),0);
     lv_obj_set_style_border_color(wc,lv_color_hex(0x1A3A5C),0);
     lv_obj_set_style_border_width(wc,2,0);lv_obj_set_style_radius(wc,16,0);
+    lv_obj_set_style_pad_all(wc,0,0);  // same content origin as the forecast card
     lv_obj_clear_flag(wc,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(wc,LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_t*wt=lv_label_create(wc);
