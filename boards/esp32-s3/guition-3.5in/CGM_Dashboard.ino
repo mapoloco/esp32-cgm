@@ -29,6 +29,8 @@
 #include "spanish_font.h" // Latin accents and ñ for the LVGL display
 
 Preferences prefs;
+static int displayMode = 0; // 0=dashboard original, 1=minimalist reference layout
+static int webLanguage = 1; // 0=English, 1=Español
 
 // Route JSON documents to PSRAM (8MB) instead of the scarce, fragmentation-prone
 // internal heap. Repeated TLS + JSON churn fragments internal RAM over hours until
@@ -70,6 +72,10 @@ DashConfig cfg = {100,20,1,7,10000,70,280, false,0,
 
 void loadConfig() {
     prefs.begin("cfg", true);
+    displayMode = prefs.getInt("displayMode", 0);
+    if(displayMode < 0 || displayMode > 1) displayMode = 0;
+    webLanguage = prefs.getInt("webLanguage", 1);
+    if(webLanguage < 0 || webLanguage > 1) webLanguage = 1;
     cfg.dayBright   = prefs.getInt("dayBright",   100);
     cfg.nightBright = prefs.getInt("nightBright",  20);
     cfg.nightStart  = prefs.getInt("nightStart",    1);
@@ -102,6 +108,8 @@ void loadConfig() {
 }
 void saveConfig() {
     prefs.begin("cfg", false);
+    prefs.putInt("displayMode", displayMode);
+    prefs.putInt("webLanguage", webLanguage);
     prefs.putInt("dayBright",   cfg.dayBright);
     prefs.putInt("nightBright", cfg.nightBright);
     prefs.putInt("nightStart",  cfg.nightStart);
@@ -146,7 +154,17 @@ bool   g_provisioning = false;   // true only while in SoftAP setup mode
 String g_apName       = "";      // "glucoscout-<mac4>"
 String g_wifiScanOpts = "";      // cached <datalist> <option> list
 
-static lv_obj_t *lbl_glucose, *lbl_trend, *lbl_time, *lbl_date;
+static lv_obj_t *lbl_glucose, *lbl_glucose_bold_overlay, *lbl_trend, *lbl_time, *lbl_date;
+static lv_obj_t *lbl_gmi_title=nullptr;
+static lv_obj_t *minimal_chart_canvas=nullptr;
+static lv_obj_t *minimal_chart_labels[4]={nullptr,nullptr,nullptr,nullptr};
+static lv_obj_t *minimal_optimal_labels[2]={nullptr,nullptr};
+static lv_obj_t *minimal_delta_unit=nullptr;
+static lv_color_t *minimal_chart_buf=nullptr;
+#define MIN_CHART_W 438
+#define MIN_CHART_H 136
+static lv_obj_t *minimal_arrow_shaft=nullptr, *minimal_arrow_head1=nullptr, *minimal_arrow_head2=nullptr;
+static lv_point_t minimal_shaft_pts[2], minimal_head1_pts[2], minimal_head2_pts[2];
 static lv_obj_t *trend_arrow_line, *trend_arrow_head1, *trend_arrow_head2;
 // LVGL keeps pointers passed to lv_line_set_points(), so these must outlive setTrendArrow().
 static lv_point_t trend_shaft_points[2], trend_head1_points[2], trend_head2_points[2];
@@ -1166,9 +1184,220 @@ static void screenLongPress_cb(lv_event_t *e){
 }
 
 // ================================================================
+// Alternate dashboard matching the supplied 480x320 reference layout.
+// The original dashboard and its web configuration fields remain intact.
+static void setMinimalTrendArrow(const String &trend){
+    if(!minimal_arrow_shaft || !minimal_arrow_head1 || !minimal_arrow_head2) return;
+    lv_point_t *shaft=minimal_shaft_pts, *h1=minimal_head1_pts, *h2=minimal_head2_pts;
+    // Coordinates are local to the arrow object; points remain valid for LVGL.
+    if(trend=="SingleUp" || trend=="DoubleUp"){
+        shaft[0]={22,42}; shaft[1]={22,4};
+        h1[0]={5,22}; h1[1]={22,4}; h2[0]={39,22}; h2[1]={22,4};
+    } else if(trend=="FortyFiveUp"){
+        shaft[0]={5,42}; shaft[1]={39,4};
+        h1[0]={21,4}; h1[1]={39,4}; h2[0]={39,22}; h2[1]={39,4};
+    } else if(trend=="SingleDown" || trend=="DoubleDown"){
+        shaft[0]={22,4}; shaft[1]={22,42};
+        h1[0]={5,24}; h1[1]={22,42}; h2[0]={39,24}; h2[1]={22,42};
+    } else if(trend=="FortyFiveDown"){
+        shaft[0]={5,4}; shaft[1]={39,42};
+        h1[0]={39,24}; h1[1]={39,42}; h2[0]={21,42}; h2[1]={39,42};
+    } else {
+        shaft[0]={3,23}; shaft[1]={41,23};
+        h1[0]={26,8}; h1[1]={41,23}; h2[0]={26,38}; h2[1]={41,23};
+    }
+    uint32_t color=0xFFCC00;
+    if(trend=="SingleUp" || trend=="DoubleUp" || trend=="FortyFiveUp") color=0x00FF66;
+    else if(trend=="SingleDown" || trend=="DoubleDown" || trend=="FortyFiveDown") color=0xFF3333;
+    for(lv_obj_t *o : {minimal_arrow_shaft,minimal_arrow_head1,minimal_arrow_head2}){
+        lv_obj_set_style_line_color(o,lv_color_hex(color),0);
+        lv_obj_set_style_line_width(o,7,0);
+        lv_obj_set_style_line_rounded(o,true,0);
+    }
+    lv_line_set_points(minimal_arrow_shaft,shaft,2);
+    lv_line_set_points(minimal_arrow_head1,h1,2);
+    lv_line_set_points(minimal_arrow_head2,h2,2);
+}
+
+static void createMinimalDashboardUI(){
+    lv_obj_t *scr=lv_scr_act();
+    lv_obj_set_style_bg_color(scr,lv_color_hex(0x000000),0);
+    lv_obj_set_style_bg_opa(scr,LV_OPA_COVER,0);
+    lv_obj_clear_flag(scr,LV_OBJ_FLAG_SCROLLABLE);
+
+    // Exact reference layout: GMI left, glucose centered, trend right.
+    lbl_gmi_title=lv_label_create(scr); lv_label_set_text(lbl_gmi_title,"GMI");
+    lv_obj_set_style_text_color(lbl_gmi_title,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(lbl_gmi_title,&cgm_font_es_18,0);
+    lv_obj_set_pos(lbl_gmi_title,32,17);
+    lbl_gmi=lv_label_create(scr); lv_label_set_text(lbl_gmi,"--.-%");
+    lv_obj_set_style_text_color(lbl_gmi,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(lbl_gmi,&cgm_font_es_28,0);
+    lv_obj_set_pos(lbl_gmi,32,43);
+
+    lbl_glucose=lv_label_create(scr); lv_label_set_text(lbl_glucose,"---");
+    lv_obj_set_style_text_color(lbl_glucose,lv_color_hex(0x00FF88),0);
+    lv_obj_set_style_text_font(lbl_glucose,&cgm_font_es_48,0);
+    // Enlarge the reading around the center of its full-width label.
+    lv_obj_set_width(lbl_glucose,480);
+    lv_obj_set_style_transform_pivot_x(lbl_glucose,240,0);
+    lv_obj_set_style_transform_pivot_y(lbl_glucose,35,0);
+    lv_obj_set_style_transform_zoom(lbl_glucose,384,0);
+    lv_obj_set_style_text_align(lbl_glucose,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_pos(lbl_glucose,0,12);
+    // Slightly offset duplicate label makes the central reading visually bolder
+    // while retaining the custom Spanish-capable font available in the project.
+    lbl_glucose_bold_overlay=lv_label_create(scr); lv_label_set_text(lbl_glucose_bold_overlay,"---");
+    lv_obj_set_style_text_color(lbl_glucose_bold_overlay,lv_color_hex(0x00FF88),0);
+    lv_obj_set_style_text_font(lbl_glucose_bold_overlay,&cgm_font_es_48,0);
+    lv_obj_set_width(lbl_glucose_bold_overlay,480);
+    lv_obj_set_style_transform_pivot_x(lbl_glucose_bold_overlay,240,0);
+    lv_obj_set_style_transform_pivot_y(lbl_glucose_bold_overlay,35,0);
+    lv_obj_set_style_transform_zoom(lbl_glucose_bold_overlay,384,0);
+    lv_obj_set_style_text_align(lbl_glucose_bold_overlay,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_pos(lbl_glucose_bold_overlay,0,12);
+    lv_obj_t *unit=lv_label_create(scr); lv_label_set_text(unit,"mg/dL");
+    lv_obj_set_style_text_color(unit,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(unit,&cgm_font_es_22,0);
+    lv_obj_set_width(unit,480); lv_obj_set_style_text_align(unit,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_align(unit,LV_ALIGN_TOP_MID,0,92);
+
+    minimal_arrow_shaft=lv_line_create(scr); minimal_arrow_head1=lv_line_create(scr); minimal_arrow_head2=lv_line_create(scr);
+    lv_obj_set_pos(minimal_arrow_shaft,390,10); lv_obj_set_pos(minimal_arrow_head1,390,10); lv_obj_set_pos(minimal_arrow_head2,390,10);
+    lbl_trend=lv_label_create(scr); lv_label_set_text(lbl_trend,"+0.0");
+    lv_obj_set_style_text_color(lbl_trend,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(lbl_trend,&cgm_font_es_28,0);
+    lv_obj_set_width(lbl_trend,116); lv_obj_set_style_text_align(lbl_trend,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_pos(lbl_trend,354,61);
+    minimal_delta_unit=lv_label_create(scr); lv_label_set_text(minimal_delta_unit,"mg/dL");
+    lv_obj_set_style_text_color(minimal_delta_unit,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(minimal_delta_unit,&cgm_font_es_18,0);
+    lv_obj_set_width(minimal_delta_unit,116); lv_obj_set_style_text_align(minimal_delta_unit,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_pos(minimal_delta_unit,354,91);
+
+    // Graph labels are created in drawMinimalChart(): maximum, 130, 90, minimum.
+    const int chartX=42, chartY=123;
+    for(int i=0;i<4;i++){
+        minimal_chart_labels[i]=lv_label_create(scr);
+        lv_label_set_text(minimal_chart_labels[i], "--");
+        lv_obj_set_style_text_color(minimal_chart_labels[i],lv_color_hex(i==1 || i==2 ? 0x00FF88 : 0xFFFFFF),0);
+        lv_obj_set_style_text_font(minimal_chart_labels[i],&cgm_font_es_16,0);
+        lv_obj_set_width(minimal_chart_labels[i],34);
+        lv_obj_set_style_text_align(minimal_chart_labels[i],LV_TEXT_ALIGN_RIGHT,0);
+        lv_obj_set_pos(minimal_chart_labels[i],0,chartY+i*28);
+    }
+    if(!minimal_chart_buf) minimal_chart_buf=(lv_color_t*)heap_caps_malloc(MIN_CHART_W*MIN_CHART_H*sizeof(lv_color_t),MALLOC_CAP_SPIRAM);
+    if(minimal_chart_buf){
+        minimal_chart_canvas=lv_canvas_create(scr);
+        lv_canvas_set_buffer(minimal_chart_canvas,minimal_chart_buf,MIN_CHART_W,MIN_CHART_H,LV_IMG_CF_TRUE_COLOR);
+        lv_obj_set_pos(minimal_chart_canvas,chartX,chartY);
+        lv_canvas_fill_bg(minimal_chart_canvas,lv_color_hex(0x000000),LV_OPA_COVER);
+    }
+    lbl_date=lv_label_create(scr); lv_label_set_text(lbl_date,"19 OCT 26");
+    lv_obj_set_style_text_color(lbl_date,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(lbl_date,&cgm_font_es_48,0);
+    lv_obj_set_pos(lbl_date,10,269);
+    lbl_time=lv_label_create(scr); lv_label_set_text(lbl_time,"20:55");
+    lv_obj_set_style_text_color(lbl_time,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_font(lbl_time,&cgm_font_es_48,0);
+    lv_obj_align(lbl_time,LV_ALIGN_BOTTOM_RIGHT,-12,-1);
+    lbl_weather=nullptr; lbl_weather_desc=nullptr; lbl_wifi=nullptr; lbl_status=nullptr;
+}
+
+static void drawMinimalChart(){
+    if(!minimal_chart_canvas || !minimal_chart_buf) return;
+    lv_canvas_fill_bg(minimal_chart_canvas,lv_color_hex(0x000000),LV_OPA_COVER);
+    xSemaphoreTake(dataMutex,portMAX_DELAY);
+    int n=glucoseHistoryCount; int hist[SPARK_POINTS];
+    if(n>SPARK_POINTS) n=SPARK_POINTS;
+    for(int i=0;i<n;i++) hist[i]=glucoseHistory[i];
+    xSemaphoreGive(dataMutex);
+    if(n<2) return;
+
+    int dataMin=hist[0], dataMax=hist[0];
+    for(int i=1;i<n;i++){ if(hist[i]<dataMin)dataMin=hist[i]; if(hist[i]>dataMax)dataMax=hist[i]; }
+
+    // Dynamic scale follows only the observed 3-hour minimum/maximum with 10 mg/dL padding.
+    // Reference lines are included only when they fall within the observed glucose range:
+    // show 130 only if the maximum reaches 130, and 90 only if the minimum reaches 90 or below.
+    int vmin=dataMin-10, vmax=dataMax+10;
+    if(vmin<30) vmin=30;
+    if(vmax>400) vmax=400;
+    if(vmax<=vmin) vmax=vmin+20;
+    auto yfor=[&](int v)->int { if(v<vmin)v=vmin; if(v>vmax)v=vmax; return MIN_CHART_H-1-((v-vmin)*(MIN_CHART_H-1))/(vmax-vmin); };
+
+    // Active lines in top-to-bottom value order: 3-hour max, optional 130, optional 90, 3-hour min.
+    int lineValues[4];
+    uint32_t lineColors[4];
+    int lineCount=0;
+    lineValues[lineCount]=dataMax; lineColors[lineCount++]=0xFFFFFF;
+    if(dataMax>=130){ lineValues[lineCount]=130; lineColors[lineCount++]=0x00FF88; }
+    if(dataMin<=90){ lineValues[lineCount]=90; lineColors[lineCount++]=0x00FF88; }
+    lineValues[lineCount]=dataMin; lineColors[lineCount++]=0xFFFFFF;
+
+    // Keep labels left of their lines and separate them vertically when values are close.
+    int labelY[4];
+    for(int j=0;j<lineCount;j++) labelY[j]=yfor(lineValues[j])-9;
+    for(int pass=0;pass<4;pass++){
+        for(int a=0;a<lineCount;a++) for(int b=a+1;b<lineCount;b++){
+            if(labelY[a]>labelY[b]){ int t=labelY[a]; labelY[a]=labelY[b]; labelY[b]=t; }
+        }
+    }
+    for(int j=1;j<lineCount;j++) if(labelY[j]<labelY[j-1]+18) labelY[j]=labelY[j-1]+18;
+    if(labelY[lineCount-1]>MIN_CHART_H-18){
+        labelY[lineCount-1]=MIN_CHART_H-18;
+        for(int j=lineCount-2;j>=0;j--) if(labelY[j]>labelY[j+1]-18) labelY[j]=labelY[j+1]-18;
+    }
+    // Match adjusted label positions back to the active lines.
+    int placedY[4]; bool usedY[4]={false,false,false,false};
+    for(int j=0;j<lineCount;j++){
+        int target=yfor(lineValues[j])-9, best=-1, dist=10000;
+        for(int k=0;k<lineCount;k++) if(!usedY[k]) { int d=abs(target-labelY[k]); if(d<dist){dist=d;best=k;} }
+        if(best<0) best=j; usedY[best]=true; placedY[j]=labelY[best];
+    }
+    for(int j=0;j<4;j++){
+        if(!minimal_chart_labels[j]) continue;
+        if(j<lineCount){
+            char b[12]; snprintf(b,sizeof(b),"%d",lineValues[j]);
+            lv_label_set_text(minimal_chart_labels[j],b);
+            lv_obj_set_style_text_color(minimal_chart_labels[j],lv_color_hex(lineColors[j]),0);
+            lv_obj_set_style_text_opa(minimal_chart_labels[j],LV_OPA_COVER,0);
+            lv_obj_set_pos(minimal_chart_labels[j],0,123+placedY[j]);
+            lv_obj_clear_flag(minimal_chart_labels[j],LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_label_set_text(minimal_chart_labels[j],"");
+            lv_obj_add_flag(minimal_chart_labels[j],LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    // Draw the glucose curve with the original value-dependent colors.
+    lv_draw_line_dsc_t ld; lv_draw_line_dsc_init(&ld);
+    ld.width=3; ld.round_start=1; ld.round_end=1;
+    lv_point_t pts[2];
+    for(int i=0;i<n-1;i++){
+        int x1=MIN_CHART_W-1-(i*(MIN_CHART_W-1))/(n-1);
+        int x2=MIN_CHART_W-1-((i+1)*(MIN_CHART_W-1))/(n-1);
+        pts[0].x=x2; pts[0].y=yfor(hist[i+1]);
+        pts[1].x=x1; pts[1].y=yfor(hist[i]);
+        ld.color=glucoseColor(hist[i]);
+        lv_canvas_draw_line(minimal_chart_canvas,pts,2,&ld);
+    }
+
+    // Overlay only the active lines so no unused target lines create empty chart space.
+    for(int j=0;j<lineCount;j++){
+        int gy=yfor(lineValues[j]);
+        for(int gx=0;gx<MIN_CHART_W;gx+=8){
+            for(int dx=0;dx<3 && gx+dx<MIN_CHART_W;dx++)
+                lv_canvas_set_px(minimal_chart_canvas,gx+dx,gy,lv_color_hex(lineColors[j]));
+        }
+    }
+}
+
+// ================================================================
 // LVGL Dashboard UI
 // ================================================================
 void createDashboardUI(){
+    if(displayMode==1){ createMinimalDashboardUI(); return; }
     lv_obj_t*scr=lv_scr_act();
     lv_obj_set_style_bg_color(scr,lv_color_hex(0x060A14),0);
     lv_obj_set_style_bg_opa(scr,LV_OPA_COVER,0);
@@ -1402,7 +1631,10 @@ void addPageDots(){
 
 // ---- Build the currently-selected page (clears the screen first) ----
 void buildPage(){
-    lbl_glucose=lbl_trend=lbl_time=lbl_date=lbl_weather=lbl_wifi=lbl_status=lbl_gmi=nullptr;
+    lbl_glucose=lbl_glucose_bold_overlay=lbl_trend=lbl_time=lbl_date=lbl_weather=lbl_wifi=lbl_status=lbl_gmi=nullptr;
+    minimal_optimal_labels[0]=minimal_optimal_labels[1]=nullptr;
+    lbl_gmi_title=nullptr; minimal_chart_canvas=nullptr;
+    minimal_arrow_shaft=minimal_arrow_head1=minimal_arrow_head2=nullptr;
     trend_arrow_line=trend_arrow_head1=trend_arrow_head2=nullptr;
     for(int i=0;i<4;i++)lbl_fc[i]=nullptr;
     lbl_dev_ip=lbl_dev_sig=lbl_dev_ha=nullptr;
@@ -1415,7 +1647,7 @@ void buildPage(){
     else if(currentPage==1) buildBigGlucosePage();
     else if(currentPage==2) buildDevicePage();
     else                    buildHaPage();
-    addPageDots();
+    if(!(currentPage==0 && displayMode==1)) addPageDots();
 }
 
 // ================================================================
@@ -1429,10 +1661,13 @@ void updateDashboardUI(){
     FcDay fc[4]; for(int i=0;i<4;i++)fc[i]=forecast[i];
     xSemaphoreGive(dataMutex);
     if(lbl_gmi){
-        if(g30>0||g90>0){
-            char gb[40];snprintf(gb,sizeof(gb),"GMI 30d %.1f%%",g30);
-            lv_label_set_text(lbl_gmi,gb);
-        } else lv_label_set_text(lbl_gmi,"GMI --");
+        if(displayMode==1 && currentPage==0){
+            if(g30>0||g90>0){char gb[24];snprintf(gb,sizeof(gb),"%.1f%%",g30>0?g30:g90);lv_label_set_text(lbl_gmi,gb);}
+            else lv_label_set_text(lbl_gmi,"--.-%");
+        } else {
+            if(g30>0||g90>0){char gb[40];snprintf(gb,sizeof(gb),"GMI 30d %.1f%%",g30>0?g30:g90);lv_label_set_text(lbl_gmi,gb);}
+            else lv_label_set_text(lbl_gmi,"GMI --");
+        }
     }
     for(int i=0;i<4;i++){
         if(!lbl_fc[i])continue;
@@ -1442,14 +1677,28 @@ void updateDashboardUI(){
         } else lv_label_set_text(lbl_fc[i],"--\n--\n--");
     }
     if(lbl_glucose){
-        lv_label_set_text(lbl_glucose,gv>0?String(gv).c_str():"---");
-        lv_obj_set_style_text_color(lbl_glucose,glucoseColor(gv),0);
+        const String glucoseText=(gv>0?String(gv):String("---"));
+        lv_label_set_text(lbl_glucose,glucoseText.c_str());
+        if(lbl_glucose_bold_overlay){
+            lv_label_set_text(lbl_glucose_bold_overlay,glucoseText.c_str());
+            lv_obj_set_style_text_opa(lbl_glucose_bold_overlay,(displayMode==1 && currentPage==0)?LV_OPA_COVER:LV_OPA_TRANSP,0);
+        }
+        lv_color_t glucoseTextColor=glucoseColor(gv);
+        if(displayMode==1 && currentPage==0){
+            bool lowOrHigh=(gv>0 && (gv<70 || gv>180));
+            bool directional=(ta=="SingleUp"||ta=="DoubleUp"||ta=="FortyFiveUp"||ta=="SingleDown"||ta=="DoubleDown"||ta=="FortyFiveDown");
+            glucoseTextColor=(lowOrHigh)?lv_color_hex(0xFF3333):(directional?lv_color_hex(0xFF8800):glucoseColor(gv));
+        }
+        lv_obj_set_style_text_color(lbl_glucose,glucoseTextColor,0);
+        if(lbl_glucose_bold_overlay) lv_obj_set_style_text_color(lbl_glucose_bold_overlay,glucoseTextColor,0);
     }
     if(lbl_trend) {
         String delta=(gd>=0?"+":"")+String(gd);
         lv_label_set_text(lbl_trend,delta.c_str());
+        if(displayMode==1 && currentPage==0) lv_obj_set_style_text_color(lbl_trend,lv_color_hex(0xFFFFFF),0);
     }
     setTrendArrow(ta);
+    if(displayMode==1 && currentPage==0) setMinimalTrendArrow(ta);
     if(lbl_weather){
         int sep=ws.indexOf("  ");
         String temp=(sep>=0)?ws.substring(0,sep):ws;
@@ -1458,7 +1707,7 @@ void updateDashboardUI(){
         if(lbl_weather_desc)lv_label_set_text(lbl_weather_desc,desc.c_str());
     }
     if(lbl_wifi) lv_label_set_text(lbl_wifi,(String(WiFi.RSSI())+" dBm").c_str());
-    drawSparkline();
+    if(displayMode==1 && currentPage==0) drawMinimalChart(); else drawSparkline();
     // Device/HA page (page 2) live fields
     bool wifiUp=WiFi.isConnected();
     if(lbl_dev_ip) lv_label_set_text(lbl_dev_ip,("IP:  "+(wifiUp?WiFi.localIP().toString():String("sin conexión"))).c_str());
@@ -1516,7 +1765,7 @@ void streamConfigPage(){
     html += (R"HTML(<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CGM Config</title>
+<title>Azucómetro</title>
 <style>
 :root{--bg:#f5f5f5;--card:#fff;--accent:#e74c3c;--text:#222;--muted:#666;--border:#ddd;--r:12px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1542,7 +1791,7 @@ button{border:none;border-radius:10px;padding:13px 20px;font-size:.95rem;font-we
 .toast.err{background:var(--accent)}
 .ip{font-size:.75rem;color:var(--muted);text-align:center;margin-top:16px}
 </style></head><body>
-<h1>&#127973; CGM Dashboard</h1>
+<h1>&#127973; Azucómetro</h1>
 <p class="sub">Settings saved to device — survive reboot</p>
 <nav><a href="/" class="active">Settings</a></nav>
 <div class="toast" id="toast"></div>
@@ -1565,6 +1814,18 @@ button{border:none;border-radius:10px;padding:13px 20px;font-size:.95rem;font-we
 <input type="number" name="nightEnd" min="0" max="23" value=")HTML");
     html += (String(cfg.nightEnd));
     html += (R"HTML("><span class="unit">hr</span></div></div>
+<div class="card"><h2>Language / Idioma</h2><div class="row"><label>Web interface language</label><select name="webLanguage" id="webLanguage" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:.95rem"><option value="1" )HTML");
+    if(webLanguage==1)html += (" selected");
+    html += (R"HTML(>Español</option><option value="0" )HTML");
+    if(webLanguage==0)html += (" selected");
+    html += (R"HTML(>English</option></select></div></div>
+<div class="card"><h2>Display Layout</h2>
+<div class="row"><label>Dashboard design<small>Choose the home screen shown after saving</small></label>
+<select name="displayMode" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:.95rem"><option value="0")HTML");
+    if(displayMode==0)html += (" selected");
+    html += (R"HTML(>Main dashboard (weather)</option><option value="1")HTML");
+    if(displayMode==1)html += (" selected");
+    html += (R"HTML(>Minimalist</option></select></div></div>
 <div class="card"><h2>Display Timing</h2>
  <div class="row"><label>Clock format<small>Choose 12-hour or 24-hour time</small></label>
  <select name="timeFormat" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:.95rem"><option value="24")HTML");
@@ -1706,18 +1967,37 @@ button{border:none;border-radius:10px;padding:13px 20px;font-size:.95rem;font-we
 </div>
 <div class="brow"><button class="br" type="button" style="background:#8e2820;color:#fff" onclick="doFactoryReset()">Factory Reset</button></div>
 </form>
-<p class="ip">CGM-Dashboard &#8226; )HTML");
+<p class="ip">Azucómetro &#8226; )HTML");
     html += (WiFi.localIP().toString());
     html += (R"HTML(</p>
 <script>
 var toast=document.getElementById("toast");
-function showToast(m,e){toast.textContent=m;toast.className="toast"+(e?" err":"");
+var lang=(document.getElementById("webLanguage")||{}).value||"1";
+var esMap={
+"Settings saved to device — survive reboot":"Configuración guardada en el dispositivo — se conserva al reiniciar","Settings":"Configuración","Brightness":"Brillo","Day brightness":"Brillo diurno","Normal hours":"Horario normal","Night brightness":"Brillo nocturno","Dim during night mode":"Atenuar durante la noche","Night Mode Hours":"Horario nocturno","Dim at hour":"Atenuar a las","Brighten at hour":"Aumentar brillo a las","Display Layout":"Diseño de pantalla","Language / Idioma":"Idioma / Language","Web interface language":"Idioma de la interfaz web","Dashboard design":"Diseño del panel","Choose the home screen shown after saving":"Elige la pantalla de inicio al guardar","Main dashboard (weather)":"Pantalla principal (meteorología)","Display Timing":"Formato horario","Clock format":"Formato del reloj","Choose 12-hour or 24-hour time":"Elige formato de 12 o 24 horas","24 hours (17:52)":"24 horas (17:52)","12 hours (5:52 PM)":"12 horas (5:52 PM)","Dashboard time":"Duración del panel","How long dashboard shows":"Tiempo que se muestra el panel","Glucose Alert Thresholds":"Límites de alerta de glucosa","Critical LOW":"MÍNIMO crítico","Critical HIGH":"MÁXIMO crítico","Red flash + LOW! overlay":"Parpadeo rojo + aviso LOW!","Red flash + HIGH! overlay":"Parpadeo rojo + aviso HIGH!","Glucose Source":"Fuente de glucosa","Data source":"Origen de los datos","Where glucose readings come from":"De dónde proceden las lecturas","Nightscout URL":"URL de Nightscout","Nightscout secret":"Clave de Nightscout","blank = keep":"vacío = mantener","blank = keep current":"vacío = mantener actual","Dexcom username":"Usuario de Dexcom","Dexcom password":"Contraseña de Dexcom","Outside US":"Fuera de EE. UU.","Libre email":"Correo de Libre","Libre password":"Contraseña de Libre","Wi-Fi Network":"Red Wi-Fi","Wi-Fi network":"Red Wi-Fi","SSID the panel connects to":"SSID al que se conecta el panel","Wi-Fi password":"Contraseña Wi-Fi","Home Assistant (MQTT)":"Home Assistant (MQTT)","Broker host":"Servidor del broker","HA's MQTT broker IP — blank = disabled":"IP del broker MQTT de HA; vacío = desactivado","Username":"Usuario","Password":"Contraseña","Weather Location":"Ubicación meteorológica","City label":"Nombre de la ciudad","Shows on dashboard header":"Se muestra en la cabecera","Latitude":"Latitud","Longitude":"Longitud","Temperature unit":"Unidad de temperatura","Fahrenheit":"Fahrenheit","Celsius":"Celsius","Lookup by city name":"Buscar ciudad por nombre","Auto-fills lat/lon":"Completa latitud/longitud automáticamente","Find Coords":"Buscar coordenadas","Time Zone":"Zona horaria","Region":"Región","Auto-handles DST":"Gestiona automáticamente el horario de verano","Firmware":"Firmware","Current version":"Versión actual","Check for update":"Buscar actualizaciones","pulls a newer release over GitHub OTA":"Descarga una versión nueva mediante OTA de GitHub","Check for Updates":"Buscar actualizaciones","Status":"Estado","Save Settings":"Guardar configuración","Restart Board":"Reiniciar dispositivo","Factory Reset":"Restablecer de fábrica","Settings saved!":"¡Configuración guardada!","Save failed":"Error al guardar","Restarting...":"Reiniciando...","Factory reset? Erases WiFi + all settings and reboots into the setup hotspot.":"¿Restablecer de fábrica? Borra Wi-Fi y toda la configuración y reinicia el punto de acceso de instalación.","Factory reset - rebooting to setup...":"Restablecimiento de fábrica: reiniciando para configurar...","Looking up ":"Buscando ","City not found":"Ciudad no encontrada","Lookup failed":"Error en la búsqueda","Restart the board now?":"¿Reiniciar el dispositivo ahora?","Connecting...":"Conectando...","Region":"Región","Port":"Puerto","usually 1883":"normalmente 1883","Find Coords":"Buscar coordenadas","US Eastern":"EE. UU. Este","US Central":"EE. UU. Central","US Mountain":"EE. UU. Montaña","US Arizona (no DST)":"Arizona (sin horario de verano)","US Pacific":"EE. UU. Pacífico","US Alaska":"Alaska","US Hawaii":"Hawái","UK / Ireland":"Reino Unido / Irlanda","Central Europe":"Europa central","Eastern Europe":"Europa oriental","Moscow":"Moscú","Dubai / Gulf":"Dubái / Golfo","India":"India","Thailand / Vietnam":"Tailandia / Vietnam","China / Singapore":"China / Singapur","Japan / Korea":"Japón / Corea","Australia (Sydney)":"Australia (Sídney)","New Zealand":"Nueva Zelanda","UTC":"UTC"};
+function applyLanguage(){
+  lang=(document.getElementById("webLanguage")||{}).value||"1";
+  document.documentElement.lang=lang=="1"?"es":"en";
+  var walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),node;
+  while(node=walker.nextNode()){
+    if(typeof node.__originalText==="undefined")node.__originalText=node.nodeValue;
+    var original=node.__originalText, t=original.trim();
+    if(lang=="1" && esMap[t])node.nodeValue=original.replace(t,esMap[t]);
+    else node.nodeValue=original;
+  }
+  document.querySelectorAll("input[placeholder]").forEach(function(el){
+    if(typeof el.dataset.originalPlaceholder==="undefined")el.dataset.originalPlaceholder=el.placeholder;
+    el.placeholder=(lang=="1" && el.dataset.originalPlaceholder=="(unchanged)")?"(sin cambios)":el.dataset.originalPlaceholder;
+  });
+}
+if(document.getElementById("webLanguage"))document.getElementById("webLanguage").addEventListener("change",applyLanguage);
+window.addEventListener("load",function(){srcChange();applyLanguage();});
+function showToast(m,e){if(lang=="1"){m=esMap[m]||m;}toast.textContent=m;toast.className="toast"+(e?" err":"");
   toast.style.display="block";setTimeout(function(){toast.style.display="none";},3000);}
 function srcChange(){var s=document.getElementById("cgmSource").value;
   document.getElementById("ns_fields").style.display=(s=="0")?"block":"none";
   document.getElementById("dex_fields").style.display=(s=="1")?"block":"none";
   document.getElementById("lib_fields").style.display=(s=="2")?"block":"none";}
-window.addEventListener("load",srcChange);
 function doSave(){
   var b=new URLSearchParams(new FormData(document.getElementById("frm")));
   fetch("/save",{method:"POST",body:b}).then(function(r){
@@ -1762,11 +2042,14 @@ void handleRoot() { if(g_provisioning) handleWifiSetupPage(); else streamConfigP
 
 void handleSave(){
     bool changed=false;
+    bool layoutChanged=false;
     auto ga=[&](const char*n,int&d,int lo,int hi){
         if(configServer.hasArg(n)){int v=configServer.arg(n).toInt();if(v>=lo&&v<=hi){d=v;changed=true;}}
     };
     ga("dayBright",cfg.dayBright,10,100);ga("nightBright",cfg.nightBright,5,100);
     ga("nightStart",cfg.nightStart,0,23);ga("nightEnd",cfg.nightEnd,0,23);
+    if(configServer.hasArg("displayMode")){int v=configServer.arg("displayMode").toInt();if(v>=0&&v<=1&&v!=displayMode){displayMode=v;currentPage=0;changed=true;layoutChanged=true;}}
+    if(configServer.hasArg("webLanguage")){int v=configServer.arg("webLanguage").toInt();if(v>=0&&v<=1&&v!=webLanguage){webLanguage=v;changed=true;}}
     ga("critLow",cfg.critLow,40,100);ga("critHigh",cfg.critHigh,150,400);
     if(configServer.hasArg("dashboardSec")){int v=configServer.arg("dashboardSec").toInt();if(v>=3&&v<=120){cfg.dashboardMs=v*1000;changed=true;}}
     if(configServer.hasArg("timeFormat")){String v=configServer.arg("timeFormat");bool t=(v=="12");if(t!=cfg.time12h){cfg.time12h=t;changed=true;}}
@@ -1816,8 +2099,11 @@ void handleSave(){
     // --- WiFi STA creds (saved now; applied on next reconnect/reboot; blank pass = keep) ---
     if(configServer.hasArg("wifiSsid")){String v=configServer.arg("wifiSsid");if(v.length()<=64&&v!=cfg.wifiSsid){cfg.wifiSsid=v;changed=true;}}
     if(configServer.hasArg("wifiPass")){String v=configServer.arg("wifiPass");if(v.length()>0&&v.length()<=64){cfg.wifiPass=v;changed=true;}}
-    if(changed){saveConfig();applyTimezone();fetchWeather();configServer.send(200,"text/plain","OK");}
-    else configServer.send(400,"text/plain","No valid parameters");
+    if(changed){
+        saveConfig();applyTimezone();fetchWeather();
+        if(layoutChanged && bsp_display_lock(1000)){buildPage();updateDashboardUI();bsp_display_unlock();}
+        configServer.send(200,"text/plain","OK");
+    } else configServer.send(400,"text/plain","No valid parameters");
 }
 
 // --- /screenshot : the panel's own framebuffer, as a BMP -----------------------
@@ -2139,7 +2425,8 @@ void loop(){
                 else strftime(tb,sizeof(tb),"%H:%M",&ti);
                 if(cfg.time12h && tb[0]=='0') memmove(tb,tb+1,strlen(tb));
                 static const char* meses[]={"ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"};
-                snprintf(db,sizeof(db),"%02d %s",ti.tm_mday,meses[ti.tm_mon]);
+                if(displayMode==1 && currentPage==0) snprintf(db,sizeof(db),"%02d %s %02d",ti.tm_mday,meses[ti.tm_mon],(ti.tm_year+1900)%100);
+                else snprintf(db,sizeof(db),"%02d %s",ti.tm_mday,meses[ti.tm_mon]);
                 if(bsp_display_lock(200)){if(lbl_time)lv_label_set_text(lbl_time,tb);if(lbl_date)lv_label_set_text(lbl_date,db);bsp_display_unlock();}
                 static int lHr=-1;if(ti.tm_hour!=lHr){lHr=ti.tm_hour;applyBrightness(ti.tm_hour);}
             }
