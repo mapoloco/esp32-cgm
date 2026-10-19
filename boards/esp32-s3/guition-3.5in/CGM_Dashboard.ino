@@ -148,6 +148,8 @@ String g_wifiScanOpts = "";      // cached <datalist> <option> list
 
 static lv_obj_t *lbl_glucose, *lbl_trend, *lbl_time, *lbl_date;
 static lv_obj_t *trend_arrow_line, *trend_arrow_head1, *trend_arrow_head2;
+// LVGL keeps pointers passed to lv_line_set_points(), so these must outlive setTrendArrow().
+static lv_point_t trend_shaft_points[2], trend_head1_points[2], trend_head2_points[2];
 static lv_obj_t *lbl_weather, *lbl_weather_desc=nullptr, *lbl_wifi,  *lbl_status, *lbl_gmi=nullptr;
 static lv_obj_t *lbl_fc[4]={nullptr,nullptr,nullptr,nullptr};   // 4-day forecast columns
 // Swipe pages: 0 = full dashboard, 1 = big glucose, 2 = device, 3 = HA control. Long-press = Settings (any page).
@@ -323,26 +325,26 @@ String trendToArrow(String d){
 }
 void setTrendArrow(const String &trend){
     if(!trend_arrow_line || !trend_arrow_head1 || !trend_arrow_head2) return;
-    lv_point_t shaft[2], head1[2], head2[2];
+    // Persistent point buffers: LVGL stores these pointers instead of copying them.
+    lv_point_t *shaft=trend_shaft_points, *head1=trend_head1_points, *head2=trend_head2_points;
     if(trend=="SingleUp" || trend=="DoubleUp"){
-        shaft[0]={19,31}; shaft[1]={19,7};
-        head1[0]={8,18}; head1[1]={19,7}; head2[0]={30,18}; head2[1]={19,7};
+        shaft[0]={19,32}; shaft[1]={19,6};
+        head1[0]={7,18}; head1[1]={19,6}; head2[0]={31,18}; head2[1]={19,6};
     } else if(trend=="FortyFiveUp"){
-        shaft[0]={7,30}; shaft[1]={30,7};
-        head1[0]={15,7}; head1[1]={30,7}; head2[0]={30,22}; head2[1]={30,7};
+        shaft[0]={6,32}; shaft[1]={32,6};
+        head1[0]={16,6}; head1[1]={32,6}; head2[0]={32,22}; head2[1]={32,6};
     } else if(trend=="SingleDown" || trend=="DoubleDown"){
-        shaft[0]={19,7}; shaft[1]={19,31};
-        head1[0]={8,20}; head1[1]={19,31}; head2[0]={30,20}; head2[1]={19,31};
+        shaft[0]={19,6}; shaft[1]={19,32};
+        head1[0]={7,20}; head1[1]={19,32}; head2[0]={31,20}; head2[1]={19,32};
     } else if(trend=="FortyFiveDown"){
-        shaft[0]={7,7}; shaft[1]={30,30};
-        head1[0]={30,15}; head1[1]={30,30}; head2[0]={15,30}; head2[1]={30,30};
+        shaft[0]={6,6}; shaft[1]={32,32};
+        head1[0]={32,16}; head1[1]={32,32}; head2[0]={16,32}; head2[1]={32,32};
     } else {
-        shaft[0]={5,19}; shaft[1]={33,19};
-        head1[0]={23,9}; head1[1]={33,19}; head2[0]={23,29}; head2[1]={33,19};
+        shaft[0]={4,19}; shaft[1]={34,19};
+        head1[0]={23,8}; head1[1]={34,19}; head2[0]={23,30}; head2[1]={34,19};
     }
-    // Keep the existing yellow color, but make the drawn arrow clearly visible.
-    // DoubleUp/DoubleDown use a heavier stroke to distinguish rapid changes.
-    int arrowWidth=(trend=="DoubleUp" || trend=="DoubleDown")?8:6;
+    // Match the +3 label's yellow color and keep the arrow approximately the same visual weight.
+    int arrowWidth=5;
     lv_obj_set_style_line_width(trend_arrow_line,arrowWidth,0);
     lv_obj_set_style_line_width(trend_arrow_head1,arrowWidth,0);
     lv_obj_set_style_line_width(trend_arrow_head2,arrowWidth,0);
