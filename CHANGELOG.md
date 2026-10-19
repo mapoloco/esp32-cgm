@@ -9,8 +9,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Initial English/Spanish language selector and persisted language preference for the GUITION 3.5-inch dashboard and web configuration page.
 
+### Changed
+- Matched the clock text color to the date label for a more consistent dashboard header.
+
 ### Fixed
-- Repositioned the dashboard footer inside the 480×320 landscape display bounds, reduced the weather/forecast cards vertically, and disabled LVGL's visible scrollbar so it cannot cover the right edge of the dashboard.
+- Kept the dashboard footer within the 480×320 landscape display bounds and reduced the weather/forecast cards vertically to avoid layout overflow.
+- Disabled LVGL's visible scrollbar on the dashboard pages so it cannot cover the right edge of the cards.
 
 ## [1.0.0-rc3] - 2026-08-04
 
