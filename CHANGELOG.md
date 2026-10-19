@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Selectable dashboard presentation:** add a persisted display mode setting to switch between the original dashboard and a minimalist glucose-focused layout.
+- **Web interface language selection:** save the selected web configuration language and provide Spanish/English UI text.
+- **Device screenshot endpoint:** add `/screenshot`, which serves a BMP snapshot rendered from the LVGL framebuffer.
+- **Minimal dashboard glucose chart:** add a compact history chart and dedicated glucose/trend layout for the alternate display mode.
+- **Wi-Fi provisioning guidance:** show the generated setup access-point name, local setup address, and a clear notice that the setup network is open.
+
+### Changed
+- **Minimal dashboard date:** include the two-digit year alongside the day and Spanish month abbreviation in the minimalist dashboard.
+- **Configuration persistence:** save and restore the dashboard presentation mode and web interface language alongside existing settings.
+
+
+### Added
 - **Spanish display glyph support** in `boards/esp32-s3/guition-3.5in/spanish_font.h`, extending the LVGL Montserrat-based fonts to render Spanish accented vowels, ñ, ü, and additional Latin-1 accented characters. The dashboard, settings, provisioning, and status screens use these fonts.
 - **Selectable clock format** in the web configuration page under **Display Timing**: 24-hour (`17:52`) or 12-hour (`5:52 PM`). The preference is saved in device settings and restored after reboot.
 
