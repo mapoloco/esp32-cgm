@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Spanish display glyph support** in `boards/esp32-s3/guition-3.5in/spanish_font.h`, extending the LVGL Montserrat-based fonts to render Spanish accented vowels, ñ, ü, and additional Latin-1 accented characters. The dashboard, settings, provisioning, and status screens use these fonts.
+- **Selectable clock format** in the web configuration page under **Display Timing**: 24-hour (`17:52`) or 12-hour (`5:52 PM`). The preference is saved in device settings and restored after reboot.
+
+### Changed
+- **Weather interface in Spanish:** current conditions, four-day forecast labels, and weekday abbreviations are translated; temperature display uses explicit `°C` or `°F` units.
+- **Weather card layout:** current temperature and condition are displayed separately and centered; the four-day forecast columns and card widths/positions were adjusted to fit the 320×480 dashboard.
+- **Date display:** the dashboard date uses Spanish weekday abbreviations and abbreviated Spanish month names.
+- **Connection/status wording:** Wi-Fi signal quality and selected device/status messages are translated into Spanish.
+- **GMI presentation:** the dashboard shows `GMI 30d X.X%` instead of displaying the 30-day and 90-day values together. The 90-day sample count/calculation remains in the firmware.
+- **Trend arrow visibility:** graphical trend-arrow strokes are thicker (6 px normally and 8 px for `DoubleUp`/`DoubleDown`), retaining the existing yellow color.
+- **Settings scrollbar behavior:** the scrollbar is enabled when Settings opens and during touch/scroll interaction, then hidden after 5 seconds without activity. Touch activity on child controls is bubbled to the settings list so it can reset the timeout.
+
 ## [1.0.0-rc3] - 2026-08-04
 
 ### Security
