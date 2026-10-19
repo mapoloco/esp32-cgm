@@ -1,64 +1,81 @@
-# esp32-cgm
+# ESP32-CGM — monitor de glucosa para ESP32
 
-[![Release](https://img.shields.io/github/v/release/getglucoscout/esp32-cgm?include_prereleases&sort=semver)](https://github.com/getglucoscout/esp32-cgm/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform: ESP32](https://img.shields.io/badge/platform-ESP32-blue.svg)](#supported-hardware)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-yellow.svg)](LICENSE)
+[![Plataforma ESP32](https://img.shields.io/badge/plataforma-ESP32-blue.svg)](#hardware-compatible)
+[![Versión](https://img.shields.io/badge/versión-1.0.0-informational.svg)](CHANGELOG.md)
 
-Open-source firmware that turns inexpensive ESP32 touch-display boards into a
-live glucose monitor. It reads from a [Nightscout](https://nightscout.github.io/)
-site and shows current value, trend, and recent history on the screen.
+Firmware de código abierto que convierte una pantalla táctil compatible con ESP32 en un monitor informativo de glucosa. Obtiene los datos de una instancia de [Nightscout](https://nightscout.github.io/) y muestra el valor actual, la tendencia y el historial reciente.
 
-> ⚠️ **Not a medical device.** This is a hobbyist/informational display. It is
-> **not** for treatment or dosing decisions. No warranty — use at your own risk.
-> See [DISCLAIMER.md](DISCLAIMER.md).
+> **Aviso importante:** este proyecto no es un dispositivo médico y no debe utilizarse para tomar decisiones de tratamiento o dosificación de insulina. Se ofrece sin garantía y bajo la responsabilidad de quien lo utiliza. Lee el [aviso médico y la exención de responsabilidad](DISCLAIMER.md).
 
-## Supported hardware
+## Hardware compatible
 
-| Board | Chip | Display | Status |
-|-------|------|---------|--------|
-| GUITION JC3248W535C | ESP32-S3 | 3.5" 320×480 capacitive | ✅ supported |
-| GUITION 10.1" panel | ESP32-P4 | 10.1" + C6 Wi-Fi | 🚧 in progress |
+| Placa | Microcontrolador | Pantalla | Estado |
+|---|---|---|---|
+| **GUITION JC3248W535C** | ESP32-S3 | Táctil capacitiva de 3,5 pulgadas, 320 × 480 | Compatible |
+| GUITION de 10,1 pulgadas | ESP32-P4 + C6 para Wi-Fi | 10,1 pulgadas | En desarrollo; no incluida en esta versión |
 
-New boards are added under `boards/<chip>/<vendor-board>/`; the portable logic
-lives in `common/`, so a new board is an adapter, not a fork.
+Esta versión estable está preparada para la **GUITION JC3248W535C de 3,5 pulgadas con ESP32-S3**. No des por compatible otra placa solo porque también utilice ESP32.
 
-## Repository layout
+## Funciones principales
 
+- Consulta de datos de glucosa desde Nightscout.
+- Valor actual, flecha de tendencia e historial reciente.
+- Interfaz con opciones de visualización y configuración.
+- Configuración de red y de Nightscout desde el dispositivo.
+- Integración MQTT con Home Assistant.
+- Actualización del firmware por OTA y mecanismos de recuperación compatibles con esta placa.
+- Interfaz en español, incluidos caracteres acentuados y la letra ñ.
+
+Consulta el [registro de cambios](CHANGELOG.md) para conocer los cambios de cada versión.
+
+## Requisitos
+
+- Ordenador con [Arduino IDE](https://www.arduino.cc/en/software).
+- Paquete de placas [Arduino-ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html).
+- Bibliotecas **ArduinoJson**, **JPEGDEC** y **LVGL 8.4.x**.
+- Cable USB de datos para la primera instalación.
+- Acceso a una instancia de Nightscout y sus datos de conexión.
+
+## Instalación rápida
+
+1. Descarga o clona este repositorio.
+2. Abre la carpeta `boards/esp32-s3/guition-3.5in/`.
+3. Copia `secrets.example.h` como `secrets.h` y completa los datos de tu Wi-Fi y Nightscout. Si vas a usar MQTT/OTA, configura también los campos correspondientes de acuerdo con la plantilla.
+4. Instala las bibliotecas indicadas en los requisitos. Copia `lv_conf.h` junto a la carpeta de la biblioteca LVGL, según las instrucciones de la placa.
+5. En Arduino IDE, abre `CGM_Dashboard.ino` y selecciona **ESP32S3 Dev Module**. Configura la PSRAM como **OPI** y la memoria flash como **16 MB**.
+6. Compila y carga el firmware por USB. Tras el primer arranque, revisa la configuración de Nightscout en el dispositivo.
+
+La guía específica de la placa contiene el detalle de archivos y configuración: [README de la GUITION JC3248W535C](boards/esp32-s3/guition-3.5in/README.md).
+
+### Protección de credenciales
+
+- **No publiques ni compartas tu `secrets.h`**: contiene credenciales privadas y está excluido del control de versiones mediante `.gitignore`.
+- No incluyas tokens, contraseñas ni URL privadas en capturas de pantalla, incidencias o registros públicos.
+- Si una credencial se publica por accidente, cámbiala; borrarla del último commit no garantiza que desaparezca del historial.
+
+## Estructura del repositorio
+
+```text
+boards/esp32-s3/guition-3.5in/   Firmware y controladores de la placa de 3,5 pulgadas
+docs/                            Referencias y documentación de hardware
+CHANGELOG.md                     Historial de cambios en castellano
+DISCLAIMER.md                    Aviso médico y exención de responsabilidad
+secrets.example.h                Plantilla de configuración (sin credenciales reales)
 ```
-common/                          shared, board-agnostic logic (planned)
-boards/
-  esp32-s3/guition-3.5in/        the 3.5" S3 dashboard (this release)
-docs/                            hardware references
-```
 
-## Quick start
+## Versiones y actualizaciones
 
-1. Install the [Arduino IDE](https://www.arduino.cc/en/software) with the
-   [ESP32 board package](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html),
-   plus the `ArduinoJson`, `JPEGDEC`, and `lvgl` (8.4.x) libraries. Copy this
-   repo's `lv_conf.h` next to your `lvgl` library folder.
-2. In `boards/esp32-s3/guition-3.5in/`, copy `secrets.example.h` to `secrets.h`
-   and fill in your Wi-Fi and Nightscout details. `secrets.h` is git-ignored.
-3. Open `CGM_Dashboard.ino`, select the ESP32-S3 board, and flash.
+El proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/). La versión estable inicial de este fork es **1.0.0**. Consulta el [registro de cambios](CHANGELOG.md) y la sección [Releases](https://github.com/mapoloco/esp32-cgm/releases) para las notas y los archivos publicados.
 
-## Build from source
+## Ayuda y contribuciones
 
-See the per-board README in `boards/esp32-s3/guition-3.5in/`. CI builds each
-supported board on every change.
+Antes de informar de un problema, indica el modelo exacto de la placa, la versión del firmware y los pasos para reproducirlo. **No adjuntes credenciales ni secretos.**
 
-## Versioning & releases
+- [Contribuir al proyecto](CONTRIBUTING.md)
+- [Política de seguridad](SECURITY.md)
+- [Aviso médico](DISCLAIMER.md)
 
-This project follows [Semantic Versioning](https://semver.org/). Released
-builds are tagged and published on the
-[Releases page](https://github.com/getglucoscout/esp32-cgm/releases); see
-[CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+## Licencia
 
-## Contributing
-
-Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
-To report a security or credential issue, see [SECURITY.md](SECURITY.md).
-
-## License
-
-[MIT](LICENSE) © glucoscout. A paid, managed hosting service is available
-separately; this firmware is and stays free and open source.
+Este proyecto se distribuye bajo la licencia [MIT](LICENSE). Consulta el archivo de licencia para conocer sus condiciones.
