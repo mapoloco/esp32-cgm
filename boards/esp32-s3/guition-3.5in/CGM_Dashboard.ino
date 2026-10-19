@@ -340,6 +340,12 @@ void setTrendArrow(const String &trend){
         shaft[0]={5,19}; shaft[1]={33,19};
         head1[0]={23,9}; head1[1]={33,19}; head2[0]={23,29}; head2[1]={33,19};
     }
+    // Keep the existing yellow color, but make the drawn arrow clearly visible.
+    // DoubleUp/DoubleDown use a heavier stroke to distinguish rapid changes.
+    int arrowWidth=(trend=="DoubleUp" || trend=="DoubleDown")?8:6;
+    lv_obj_set_style_line_width(trend_arrow_line,arrowWidth,0);
+    lv_obj_set_style_line_width(trend_arrow_head1,arrowWidth,0);
+    lv_obj_set_style_line_width(trend_arrow_head2,arrowWidth,0);
     lv_line_set_points(trend_arrow_line,shaft,2);
     lv_line_set_points(trend_arrow_head1,head1,2);
     lv_line_set_points(trend_arrow_head2,head2,2);
