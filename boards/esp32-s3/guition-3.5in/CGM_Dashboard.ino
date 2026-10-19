@@ -28,6 +28,8 @@
 #include "ota_roots.h" // pinned root CAs for OTA transport (and only OTA)
 
 Preferences prefs;
+static int g_language=0; // 0 English, 1 Spanish; saved in NVS
+static const char* uiText(const char* en,const char* es){return g_language==1?es:en;}
 
 // Route JSON documents to PSRAM (8MB) instead of the scarce, fragmentation-prone
 // internal heap. Repeated TLS + JSON churn fragments internal RAM over hours until
@@ -68,6 +70,7 @@ DashConfig cfg = {100,20,1,7,10000,70,280, 0,
 
 void loadConfig() {
     prefs.begin("cfg", true);
+    g_language=prefs.getInt("language",0); if(g_language<0||g_language>1)g_language=0;
     cfg.dayBright   = prefs.getInt("dayBright",   100);
     cfg.nightBright = prefs.getInt("nightBright",  20);
     cfg.nightStart  = prefs.getInt("nightStart",    1);
@@ -99,6 +102,7 @@ void loadConfig() {
 }
 void saveConfig() {
     prefs.begin("cfg", false);
+    prefs.putInt("language",g_language);
     prefs.putInt("dayBright",   cfg.dayBright);
     prefs.putInt("nightBright", cfg.nightBright);
     prefs.putInt("nightStart",  cfg.nightStart);
@@ -792,6 +796,7 @@ void otaRunUpdate(){          // Core 0 (fetchTask) ONLY — blocking; reboots o
     else if(r==HTTP_UPDATE_NO_UPDATES) otaStatus="no update";
     // HTTP_UPDATE_OK reboots automatically
 }
+void handleLanguage(){String v=configServer.arg("lang");if(v=="es")g_language=1;else if(v=="en")g_language=0;else{configServer.send(400,"text/plain","Invalid language");return;}prefs.begin("cfg",false);prefs.putInt("language",g_language);prefs.end();configServer.send(200,"text/plain","OK");delay(250);ESP.restart();}
 void handleOtaCheck(){ otaRequested=true; configServer.send(200,"text/plain","Checking for updates..."); }
 void handleOtaStatus(){ configServer.send(200,"text/plain", String(FW_VERSION)+" | "+otaStatus); }
 void handleDbg(){
@@ -1023,7 +1028,7 @@ static void showFactoryConfirm(){
     lv_obj_set_size(bc,165,46);lv_obj_align(bc,LV_ALIGN_BOTTOM_LEFT,6,-8);
     lv_obj_set_style_bg_color(bc,lv_color_hex(0x445566),0);lv_obj_set_style_radius(bc,8,0);
     lv_obj_add_event_cb(bc,factoryCancel_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *lc=lv_label_create(bc);lv_label_set_text(lc,"Cancel");
+    lv_obj_t *lc=lv_label_create(bc);lv_label_set_text(lc,uiText("Cancel","Cancelar"));
     lv_obj_set_style_text_color(lc,lv_color_hex(0xFFFFFF),0);
     lv_obj_set_style_text_font(lc,&lv_font_montserrat_16,0);lv_obj_center(lc);
 
@@ -1031,7 +1036,7 @@ static void showFactoryConfirm(){
     lv_obj_set_size(be,165,46);lv_obj_align(be,LV_ALIGN_BOTTOM_RIGHT,-6,-8);
     lv_obj_set_style_bg_color(be,lv_color_hex(0x8E2820),0);lv_obj_set_style_radius(be,8,0);
     lv_obj_add_event_cb(be,factoryConfirm_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *le=lv_label_create(be);lv_label_set_text(le,"Erase");
+    lv_obj_t *le=lv_label_create(be);lv_label_set_text(le,uiText("Erase","Borrar"));
     lv_obj_set_style_text_color(le,lv_color_hex(0xFFFFFF),0);
     lv_obj_set_style_text_font(le,&lv_font_montserrat_16,0);lv_obj_center(le);
 }
@@ -1050,7 +1055,7 @@ void showSettingsMenu(){
     lv_obj_clear_flag(settings_modal,LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *t=lv_label_create(settings_modal);
-    lv_label_set_text(t,"SETTINGS");
+    lv_label_set_text(t,uiText("SETTINGS","AJUSTES"));
     lv_obj_set_style_text_color(t,lv_color_hex(0xE74C3C),0);
     lv_obj_set_style_text_font(t,&lv_font_montserrat_18,0);
     lv_obj_align(t,LV_ALIGN_TOP_MID,0,2);
@@ -1070,10 +1075,10 @@ void showSettingsMenu(){
     lv_obj_set_scrollbar_mode(list,LV_SCROLLBAR_MODE_AUTO);
 
     gSettingCount=0;
-    addSettingRow(list,0,"Day Brightness",&cfg.dayBright,10,100,5,"%");
-    addSettingRow(list,1,"Night Brightness",&cfg.nightBright,5,100,5,"%");
-    addSettingRow(list,2,"Critical Low",&cfg.critLow,40,100,5,"");
-    addSettingRow(list,3,"Critical High",&cfg.critHigh,150,400,10,"");
+    addSettingRow(list,0,uiText("Day Brightness","Brillo diurno"),&cfg.dayBright,10,100,5,"%");
+    addSettingRow(list,1,uiText("Night Brightness","Brillo nocturno"),&cfg.nightBright,5,100,5,"%");
+    addSettingRow(list,2,uiText("Critical Low","Mínimo crítico"),&cfg.critLow,40,100,5,"");
+    addSettingRow(list,3,uiText("Critical High","Máximo crítico"),&cfg.critHigh,150,400,10,"");
 
     // (Device info — IP / WiFi signal / Home Assistant — is on the swipe Device page.)
 
@@ -1084,7 +1089,7 @@ void showSettingsMenu(){
     lv_obj_set_style_radius(fr,8,0);
     lv_obj_add_event_cb(fr,factoryBtn_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *frl=lv_label_create(fr);
-    lv_label_set_text(frl,"Factory Reset");
+    lv_label_set_text(frl,uiText("Factory Reset","Restablecer de fábrica"));
     lv_obj_set_style_text_color(frl,lv_color_hex(0xFFFFFF),0);
     lv_obj_set_style_text_font(frl,&lv_font_montserrat_16,0);
     lv_obj_center(frl);
@@ -1096,7 +1101,7 @@ void showSettingsMenu(){
     lv_obj_set_style_radius(btn,8,0);
     lv_obj_add_event_cb(btn,settingsClose_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *bl=lv_label_create(btn);
-    lv_label_set_text(bl,"Save & Close");
+    lv_label_set_text(bl,uiText("Save & Close","Guardar y cerrar"));
     lv_obj_set_style_text_color(bl,lv_color_hex(0xFFFFFF),0);
     lv_obj_set_style_text_font(bl,&lv_font_montserrat_18,0);
     lv_obj_center(bl);
@@ -1188,7 +1193,7 @@ void createDashboardUI(){
     lv_obj_clear_flag(fk,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(fk,LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_set_style_pad_all(fk,0,0);
-    lv_obj_t*ft=lv_label_create(fk);lv_label_set_text(ft,"4-DAY FORECAST");
+    lv_obj_t*ft=lv_label_create(fk);lv_label_set_text(ft,uiText("4-DAY FORECAST","PREVISIÓN 4 DÍAS"));
     lv_obj_set_style_text_color(ft,lv_color_hex(0x556677),0);
     lv_obj_set_style_text_font(ft,&lv_font_montserrat_10,0);lv_obj_align(ft,LV_ALIGN_TOP_LEFT,10,6);
     for(int i=0;i<4;i++){
@@ -1248,7 +1253,7 @@ void buildBigGlucosePage(){
 // ---- Page 2: device / Home Assistant status ----
 void buildDevicePage(){
     lv_obj_t*scr=lv_scr_act();
-    lv_obj_t*h=lv_label_create(scr);lv_label_set_text(h,"DEVICE");
+    lv_obj_t*h=lv_label_create(scr);lv_label_set_text(h,uiText("DEVICE","DISPOSITIVO"));
     lv_obj_set_style_text_color(h,lv_color_hex(0xE74C3C),0);
     lv_obj_set_style_text_font(h,&lv_font_montserrat_18,0);
     lv_obj_align(h,LV_ALIGN_TOP_MID,0,22);
@@ -1283,9 +1288,9 @@ void buildHaPage(){
     lv_obj_set_style_text_font(h,&lv_font_montserrat_18,0);
     lv_obj_align(h,LV_ALIGN_TOP_MID,0,22);
     struct { const char*l; uint32_t col; uint8_t bit; } B[5]={
-        {"Announce Glucose",0x2D6CDF,BTN_ANNOUNCE},
-        {"Toggle Light",    0x00AA66,BTN_LIGHT},
-        {"Snooze Alert",    0xC0392B,BTN_SNOOZE},
+        {uiText("Announce Glucose","Anunciar glucosa"),0x2D6CDF,BTN_ANNOUNCE},
+        {uiText("Toggle Light","Alternar luz"),0x00AA66,BTN_LIGHT},
+        {uiText("Snooze Alert","Silenciar aviso"),0xC0392B,BTN_SNOOZE},
         {"Button 1",        0x445566,BTN_GEN1},
         {"Button 2",        0x445566,BTN_GEN2},
     };
@@ -1432,7 +1437,7 @@ void streamConfigPage(){
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding:16px}
 h1{font-size:1.3rem;color:var(--accent);margin-bottom:4px}
 .sub{font-size:.8rem;color:var(--muted);margin-bottom:18px}
-nav{display:flex;gap:8px;margin-bottom:18px}
+nav{display:flex;gap:8px;margin-bottom:18px}.langrow{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);padding:10px 12px;border-radius:10px;margin-bottom:12px}.langrow select{padding:7px;border:1px solid var(--border);border-radius:8px}
 nav a{display:inline-block;padding:8px 14px;border-radius:8px;font-size:.85rem;font-weight:700;text-decoration:none;background:var(--card);color:var(--muted);border:1px solid var(--border)}
 nav a.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .card{background:var(--card);border-radius:var(--r);box-shadow:0 1px 4px rgba(0,0,0,.1);padding:16px;margin-bottom:14px}
@@ -1452,7 +1457,8 @@ button{border:none;border-radius:10px;padding:13px 20px;font-size:.95rem;font-we
 .ip{font-size:.75rem;color:var(--muted);text-align:center;margin-top:16px}
 </style></head><body>
 <h1>&#127973; CGM Dashboard</h1>
-<p class="sub">Settings saved to device — survive reboot</p>
+<div class="langrow"><label for="language">Language / Idioma</label><select id="language" onchange="changeLanguage(this.value)"><option value="en">English</option><option value="es">Español</option></select></div>
+<p class="sub" data-en="Settings saved to device — survive reboot" data-es="Ajustes guardados en el dispositivo; se conservan al reiniciar">Settings saved to device — survive reboot</p>
 <nav><a href="/" class="active">Settings</a></nav>
 <div class="toast" id="toast"></div>
 <form id="frm">
@@ -1614,13 +1620,15 @@ button{border:none;border-radius:10px;padding:13px 20px;font-size:.95rem;font-we
     html += (R"HTML(</p>
 <script>
 var toast=document.getElementById("toast");
+function changeLanguage(lang){fetch("/language?lang="+encodeURIComponent(lang),{method:"POST"}).then(function(r){if(!r.ok)throw new Error();showToast(lang==="es"?"Idioma guardado; reiniciando...":"Language saved; restarting...");setTimeout(function(){location.reload();},1800);}).catch(function(){showToast("Could not save language",true);});}
+function translatePage(lang){document.documentElement.lang=lang;document.querySelectorAll("[data-en][data-es]").forEach(function(e){e.textContent=e.getAttribute("data-"+lang);});var map={"Settings":"Ajustes","Brightness":"Brillo","Day brightness":"Brillo diurno","Normal hours":"Horario normal","Night brightness":"Brillo nocturno","Dim during night mode":"Atenuación nocturna","Night Mode Hours":"Horario nocturno","Dim at hour":"Atenuar a las","Brighten at hour":"Aumentar brillo a las","Display Timing":"Duración de pantalla","Dashboard time":"Tiempo del panel","Glucose Alert Thresholds":"Límites de alerta de glucosa","Critical LOW":"MÍNIMO crítico","Critical HIGH":"MÁXIMO crítico","Glucose Source":"Origen de glucosa","Data source":"Fuente de datos","Wi-Fi Network":"Red Wi-Fi","Wi-Fi network":"Red Wi-Fi","Wi-Fi password":"Contraseña Wi-Fi","Home Assistant (MQTT)":"Home Assistant (MQTT)","Weather Location":"Ubicación meteorológica","City label":"Nombre de la ciudad","Latitude":"Latitud","Longitude":"Longitud","Temperature unit":"Unidad de temperatura","Fahrenheit":"Fahrenheit","Celsius":"Celsius","Find Coords":"Buscar coordenadas","Time Zone":"Zona horaria","Firmware":"Firmware","Current version":"Versión actual","Check for Updates":"Buscar actualizaciones","Save Settings":"Guardar ajustes","Restart Board":"Reiniciar dispositivo","Factory Reset":"Restablecer de fábrica","Save & Close":"Guardar y cerrar","Status":"Estado"};document.querySelectorAll("h2,label,button,nav a").forEach(function(e){if(e.children.length===0){var key=e.textContent.trim();if(lang==="es"&&map[key]){e.dataset.originalText=key;e.textContent=map[key];}else if(lang==="en"&&e.dataset.originalText){e.textContent=e.dataset.originalText;}}});}
 function showToast(m,e){toast.textContent=m;toast.className="toast"+(e?" err":"");
   toast.style.display="block";setTimeout(function(){toast.style.display="none";},3000);}
 function srcChange(){var s=document.getElementById("cgmSource").value;
   document.getElementById("ns_fields").style.display=(s=="0")?"block":"none";
   document.getElementById("dex_fields").style.display=(s=="1")?"block":"none";
   document.getElementById("lib_fields").style.display=(s=="2")?"block":"none";}
-window.addEventListener("load",srcChange);
+window.addEventListener("load",function(){srcChange();var lang=new URLSearchParams(location.search).get("lang")||"en";document.getElementById("language").value=lang;translatePage(lang);});
 function doSave(){
   var b=new URLSearchParams(new FormData(document.getElementById("frm")));
   fetch("/save",{method:"POST",body:b}).then(function(r){
@@ -1927,6 +1935,7 @@ void startProvisioning(){        // never returns
 void startConfigServer(){
     configServer.on("/",         HTTP_GET,  handleRoot);
     configServer.on("/save",     HTTP_POST, handleSave);
+    configServer.on("/language", HTTP_POST, handleLanguage);
     configServer.on("/otacheck", HTTP_POST, handleOtaCheck);
     configServer.on("/otastatus",HTTP_GET,  handleOtaStatus);
     configServer.on("/dbg",      HTTP_GET,  handleDbg);
