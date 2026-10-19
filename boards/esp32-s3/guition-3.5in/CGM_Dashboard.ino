@@ -1333,6 +1333,7 @@ void buildPage(){
     spark_canvas=nullptr;
     lv_obj_t*scr=lv_scr_act();
     lv_obj_clean(scr);
+    lv_obj_set_scrollbar_mode(scr,LV_SCROLLBAR_MODE_OFF); // Prevent LVGL's right-side scrollbar from covering dashboard cards
     lv_obj_set_style_bg_color(scr,lv_color_hex(0x060A14),0);
     lv_obj_set_style_bg_opa(scr,LV_OPA_COVER,0);
     if(currentPage==0)      createDashboardUI();
