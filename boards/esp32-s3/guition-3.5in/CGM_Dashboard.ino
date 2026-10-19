@@ -928,7 +928,8 @@ static const unsigned long SETTINGS_SCROLLBAR_TIMEOUT_MS = 5000;
 static void settingsScrollTouch_cb(lv_event_t *e){
     settings_scroll_last_touch = millis();
     settings_scrollbar_visible = true;
-    lv_obj_set_scrollbar_mode((lv_obj_t*)lv_event_get_target(e), LV_SCROLLBAR_MODE_ON);
+    lv_obj_t *list=(lv_obj_t*)lv_event_get_user_data(e);
+    if(list) lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_ON);
 }
 
 static void updateSettingLabel(int idx){
@@ -1114,13 +1115,14 @@ void showSettingsMenu(){
     lv_obj_set_flex_flow(list,LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(list,6,0);
     settings_scroll_list=list;
+    lv_obj_add_flag(list,LV_OBJ_FLAG_EVENT_BUBBLE);
     settings_scroll_last_touch=millis();
     settings_scrollbar_visible=true;
     lv_obj_set_scrollbar_mode(list,LV_SCROLLBAR_MODE_ON);
-    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_PRESSED,NULL);
-    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_PRESSING,NULL);
-    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_RELEASED,NULL);
-    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_SCROLL,NULL);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_PRESSED,list);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_PRESSING,list);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_RELEASED,list);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_SCROLL,list);
 
     gSettingCount=0;
     addSettingRow(list,0,"Day Brightness",&cfg.dayBright,10,100,5,"%");
