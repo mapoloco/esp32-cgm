@@ -52,6 +52,7 @@ static PsramAllocator g_psram;
 struct DashConfig {
     int dayBright, nightBright, nightStart, nightEnd;
     int dashboardMs, critLow, critHigh;
+    bool time12h;                         // false=24-hour clock, true=12-hour clock
     int cgmSource;                       // 0=Nightscout 1=Dexcom 2=Libre
     String lat, lon, city;
     bool isCelsius;
@@ -74,6 +75,7 @@ void loadConfig() {
     cfg.nightStart  = prefs.getInt("nightStart",    1);
     cfg.nightEnd    = prefs.getInt("nightEnd",       7);
     cfg.dashboardMs = prefs.getInt("dashboardMs", 10000);
+    cfg.time12h     = prefs.getBool("time12h", false);
     cfg.critLow     = prefs.getInt("critLow",        70);
     cfg.critHigh    = prefs.getInt("critHigh",      280);
     cfg.lat         = prefs.getString("lat",   "40.7128");
@@ -105,6 +107,7 @@ void saveConfig() {
     prefs.putInt("nightStart",  cfg.nightStart);
     prefs.putInt("nightEnd",    cfg.nightEnd);
     prefs.putInt("dashboardMs", cfg.dashboardMs);
+    prefs.putBool("time12h",     cfg.time12h);
     prefs.putInt("critLow",     cfg.critLow);
     prefs.putInt("critHigh",    cfg.critHigh);
     prefs.putString("lat",      cfg.lat);
@@ -1398,7 +1401,7 @@ void updateDashboardUI(){
     xSemaphoreGive(dataMutex);
     if(lbl_gmi){
         if(g30>0||g90>0){
-            char gb[40];snprintf(gb,sizeof(gb),"GMI %.1f/%.1f%%",g30,g90);
+            char gb[40];snprintf(gb,sizeof(gb),"GMI 30d %.1f%%",g30);
             lv_label_set_text(lbl_gmi,gb);
         } else lv_label_set_text(lbl_gmi,"GMI --");
     }
@@ -1534,6 +1537,12 @@ button{border:none;border-radius:10px;padding:13px 20px;font-size:.95rem;font-we
     html += (String(cfg.nightEnd));
     html += (R"HTML("><span class="unit">hr</span></div></div>
 <div class="card"><h2>Display Timing</h2>
+ <div class="row"><label>Clock format<small>Choose 12-hour or 24-hour time</small></label>
+ <select name="timeFormat" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:.95rem"><option value="24")HTML");
+    if(!cfg.time12h)html += (" selected");
+    html += (R"HTML(>24 hours (17:52)</option><option value="12")HTML");
+    if(cfg.time12h)html += (" selected");
+    html += (R"HTML(>12 hours (5:52 PM)</option></select></div>
 <div class="row"><label>Dashboard time<small>How long dashboard shows</small></label>
 <input type="number" name="dashboardSec" min="3" max="120" value=")HTML");
     html += (String(cfg.dashboardMs/1000));
@@ -1731,6 +1740,7 @@ void handleSave(){
     ga("nightStart",cfg.nightStart,0,23);ga("nightEnd",cfg.nightEnd,0,23);
     ga("critLow",cfg.critLow,40,100);ga("critHigh",cfg.critHigh,150,400);
     if(configServer.hasArg("dashboardSec")){int v=configServer.arg("dashboardSec").toInt();if(v>=3&&v<=120){cfg.dashboardMs=v*1000;changed=true;}}
+    if(configServer.hasArg("timeFormat")){String v=configServer.arg("timeFormat");bool t=(v=="12");if(t!=cfg.time12h){cfg.time12h=t;changed=true;}}
     if(configServer.hasArg("lat")){
         String v=configServer.arg("lat");float f=v.toFloat();
         if(f>=-90.0&&f<=90.0&&v.length()<=12){cfg.lat=v;changed=true;}
@@ -2088,7 +2098,9 @@ void loop(){
             struct tm ti;
             if(getLocalTime(&ti)){
                 char tb[20],db[30];
-                strftime(tb,sizeof(tb),"%H:%M",&ti);
+                if(cfg.time12h) strftime(tb,sizeof(tb),"%I:%M %p",&ti);
+                else strftime(tb,sizeof(tb),"%H:%M",&ti);
+                if(cfg.time12h && tb[0]=='0') memmove(tb,tb+1,strlen(tb));
                 static const char* meses[]={"ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"};
                 snprintf(db,sizeof(db),"%02d %s",ti.tm_mday,meses[ti.tm_mon]);
                 if(bsp_display_lock(200)){if(lbl_time)lv_label_set_text(lbl_time,tb);if(lbl_date)lv_label_set_text(lbl_date,db);bsp_display_unlock();}
