@@ -920,6 +920,16 @@ struct SettingDef { const char *label; int *value; int lo; int hi; int step; con
 static SettingDef gSettings[6];
 static lv_obj_t  *gSettingVal[6];
 static int        gSettingCount = 0;
+static lv_obj_t  *settings_scroll_list = nullptr;
+static unsigned long settings_scroll_last_touch = 0;
+static bool settings_scrollbar_visible = false;
+static const unsigned long SETTINGS_SCROLLBAR_TIMEOUT_MS = 5000;
+
+static void settingsScrollTouch_cb(lv_event_t *e){
+    settings_scroll_last_touch = millis();
+    settings_scrollbar_visible = true;
+    lv_obj_set_scrollbar_mode((lv_obj_t*)lv_event_get_target(e), LV_SCROLLBAR_MODE_ON);
+}
 
 static void updateSettingLabel(int idx){
     if(idx<0||idx>=gSettingCount)return;
@@ -952,6 +962,8 @@ static void settingsClose_cb(lv_event_t *e){
     saveConfig();
     if(factory_confirm){lv_obj_del(factory_confirm);factory_confirm=nullptr;}
     if(settings_modal){lv_obj_del(settings_modal);settings_modal=nullptr;}
+    settings_scroll_list=nullptr;
+    settings_scrollbar_visible=false;
     inSettings=false;
     struct tm ti;
     if(getLocalTime(&ti)){
@@ -1101,7 +1113,14 @@ void showSettingsMenu(){
     lv_obj_set_style_pad_all(list,2,0);
     lv_obj_set_flex_flow(list,LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(list,6,0);
-    lv_obj_set_scrollbar_mode(list,LV_SCROLLBAR_MODE_AUTO);
+    settings_scroll_list=list;
+    settings_scroll_last_touch=millis();
+    settings_scrollbar_visible=true;
+    lv_obj_set_scrollbar_mode(list,LV_SCROLLBAR_MODE_ON);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_PRESSED,NULL);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_PRESSING,NULL);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_RELEASED,NULL);
+    lv_obj_add_event_cb(list,settingsScrollTouch_cb,LV_EVENT_SCROLL,NULL);
 
     gSettingCount=0;
     addSettingRow(list,0,"Day Brightness",&cfg.dayBright,10,100,5,"%");
@@ -2095,6 +2114,14 @@ void loop(){
         ns_data_ready=false;wx_data_ready=false;gmi_ready=false;
         if(!inSettings&&bsp_display_lock(200)){
             updateDashboardUI();
+            bsp_display_unlock();
+        }
+    }
+    if(inSettings && settings_scroll_list && settings_scrollbar_visible &&
+       now-settings_scroll_last_touch>=SETTINGS_SCROLLBAR_TIMEOUT_MS){
+        if(bsp_display_lock(100)){
+            lv_obj_set_scrollbar_mode(settings_scroll_list,LV_SCROLLBAR_MODE_OFF);
+            settings_scrollbar_visible=false;
             bsp_display_unlock();
         }
     }
