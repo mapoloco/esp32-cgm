@@ -66,7 +66,7 @@ secrets.example.h                Plantilla de configuración (sin credenciales r
 
 ## Versiones y actualizaciones
 
-El proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/). La versión estable inicial de este fork es **1.0.0**. Consulta el [registro de cambios](CHANGELOG.md) y la sección [Releases](https://github.com/mapoloco/esp32-cgm/releases) para las notas y los archivos publicados.
+El proyecto utiliza [Versionado Semántico](https://semver.org/lang/es/). La versión de firmware preparada es **1.0.0**. La etiqueta `v1.0.0` y su publicación en [GitHub Releases](https://github.com/mapoloco/esp32-cgm/releases) están pendientes. Consulta el [registro de cambios](CHANGELOG.md) para ver los cambios incluidos.
 
 ## Ayuda y contribuciones
 
