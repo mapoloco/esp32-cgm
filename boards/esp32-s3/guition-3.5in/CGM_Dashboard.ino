@@ -1132,7 +1132,7 @@ void createDashboardUI(){
     lv_obj_set_style_text_font(lbl_date,&lv_font_montserrat_16,0);
     lv_obj_align(lbl_date,LV_ALIGN_LEFT_MID,12,0);
     lbl_time=lv_label_create(tb);lv_label_set_text(lbl_time,"--:-- --");
-    lv_obj_set_style_text_color(lbl_time,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_text_color(lbl_time,lv_color_hex(0x8899AA),0);
     lv_obj_set_style_text_font(lbl_time,&lv_font_montserrat_22,0);
     lv_obj_align(lbl_time,LV_ALIGN_RIGHT_MID,-12,0);
     lbl_wifi=nullptr;   // WiFi signal moved off the main screen → Settings menu (long-press)
