@@ -1,127 +1,87 @@
-# Changelog
+# Registro de cambios
 
-All notable changes to this project are documented here. The format is based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
-adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Aquí se documentan todos los cambios importantes de este proyecto. El formato se basa en
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y el proyecto sigue
+[Versionado Semántico](https://semver.org/lang/es/).
 
-## [Unreleased]
+## [Sin publicar]
 
-### Added
-- **Selectable dashboard layouts:** persist a setting to choose between the original dashboard and a minimalist glucose-focused display with a compact history chart.
-- **Web configuration language selector:** persist the chosen Spanish/English interface language.
-- **Wi-Fi provisioning clarity:** show the generated setup access-point name and address, and state explicitly that the setup network does not require a password.
-- **Minimal layout date:** show the two-digit year in the date on the minimalist dashboard.
+### Añadido
+- **Diseños de panel seleccionables:** se puede elegir y guardar entre el panel original y una vista minimalista centrada en la glucosa, con un gráfico compacto del historial.
+- **Selector de idioma en la configuración web:** permite elegir entre español e inglés y conserva la selección.
+- **Información más clara al configurar el Wi-Fi:** muestra el nombre del punto de acceso de configuración y su dirección, e indica expresamente que la red de configuración no requiere contraseña.
+- **Fecha en el diseño minimalista:** muestra el año con dos cifras.
 
-### Changed
-- **Configuration persistence:** retain the selected dashboard layout and web language after restart.
+### Cambiado
+- **Persistencia de la configuración:** el diseño del panel y el idioma de la interfaz web se conservan después de reiniciar el dispositivo.
 
-### Existing changes
-- **Spanish display glyphs** in `spanish_font.h`, selectable 12/24-hour clock, Spanish weather and glucose/trend labels, dashboard layout refinements, persistent trend-arrow geometry, dashboard and Settings scrollbar behavior, and OTA rollback/safe-mode recovery remain documented below in this unreleased section.
+### Cambios anteriores aún sin publicar
+- **Caracteres españoles en pantalla** mediante `spanish_font.h`; reloj de 12/24 horas seleccionable; etiquetas de tiempo, meteorología, glucosa y tendencia en español; mejoras en los diseños del panel; geometría persistente de las flechas de tendencia; comportamiento de las barras de desplazamiento del panel y de Ajustes; y recuperación de OTA con reversión y modo seguro.
 
 ## [1.0.0-rc3] - 2026-08-04
 
-### Security
-- **OTA transport is now certificate-pinned.** The update manifest and firmware
-  download previously skipped TLS verification, so anyone in a position to
-  intercept traffic could feed the panel a hostile "update" — remote code
-  execution by design of what OTA is. Both fetches now validate against a small
-  pinned bundle of the roots the update hosts actually chain to (Let's Encrypt,
-  Sectigo/USERTrust, plus one legacy family as rotation insurance), with an SNTP
-  clock sync before the first handshake — an unset clock rejects every
-  certificate, and a failed sync skips the check rather than downgrading to
-  unverified TLS. Glucose fetches to your own configured Nightscout/Dexcom hosts
-  are unchanged.
+### Seguridad
+- **El transporte de OTA ahora valida certificados fijados.** Antes, la descarga del manifiesto de actualización y del firmware omitía la verificación TLS, por lo que alguien capaz de interceptar el tráfico podía enviar al panel una actualización maliciosa, con la posibilidad de ejecutar código. Ambas descargas validan ahora la cadena de certificados mediante un conjunto reducido de autoridades raíz a las que encadenan los servidores de actualización (Let's Encrypt, Sectigo/USERTrust y una familia anterior como protección ante rotaciones). Se sincroniza el reloj mediante SNTP antes del primer intercambio: si el reloj no está configurado, se rechazan los certificados; si falla la sincronización, se omite la comprobación en lugar de rebajar la conexión a TLS sin verificar. Las consultas de glucosa a los servidores Nightscout/Dexcom configurados por el usuario no han cambiado.
 
-### Changed
-- The Home Assistant sensor is now labelled **GMI** — the "estimated A1C"
-  wording was retired by the FDA in 2018, and the hosted portal already says
-  plain GMI; the panel now agrees with it.
+### Cambiado
+- El sensor de Home Assistant ahora se etiqueta como **GMI**. La expresión «A1C estimada» dejó de utilizarse en ese contexto por parte de la FDA en 2018; el portal alojado ya mostraba GMI y el panel ahora usa la misma denominación.
 
 ## [1.0.0-rc2] - 2026-07-31
 
-### Added
-- **OTA recovery ladder** — a bad over-the-air update can no longer leave a panel
-  needing a USB cable. If new firmware boot-loops, the panel automatically rolls back
-  to the previous firmware in its other app slot; if that isn't possible it shows a
-  "Recovering" screen and auto-pulls a published fix over Wi-Fi (the local OTA push
-  still works too). Each healthy boot is marked valid so a good update sticks.
-  Proven on hardware before this release: a deliberately crash-looping build was
-  pushed over the air and rolled back on its own, and with *both* app slots
-  deliberately broken the panel recovered itself from safe mode — no USB either time.
-
-### Changed
-- Shipped binaries now bake the project's current home for updates
-  (`getglucoscout/esp32-cgm`); the rc1 binaries pointed at the old repository
-  location and should be reflashed once, after which OTA works normally again.
+### Añadido
+- **Sistema escalonado de recuperación OTA:** una actualización inalámbrica defectuosa ya no debería dejar el panel necesitando un cable USB. Si el nuevo firmware entra en un bucle de reinicios, el panel vuelve automáticamente al firmware anterior de la otra partición de la aplicación. Si eso no es posible, muestra una pantalla de «Recuperación» y descarga por Wi-Fi una solución publicada. También sigue funcionando la instalación OTA local. Cada arranque correcto marca el firmware como válido para conservar una actualización que funciona.
+  
+  Probado en hardware antes de esta versión: se instaló por OTA una compilación que provocaba reinicios continuos y el panel volvió por sí solo a la versión anterior. Después se dañaron deliberadamente ambas particiones de aplicación y el panel se recuperó desde el modo seguro, sin necesidad de USB.
+  
+### Cambiado
+- Los binarios publicados incluyen ahora la ubicación actual del proyecto para las actualizaciones (`getglucoscout/esp32-cgm`). Los binarios rc1 apuntaban a la ubicación anterior del repositorio; es necesario volver a instalarlos una vez y, después, las actualizaciones OTA funcionarán con normalidad.
 
 ## [1.0.0-rc1] - 2026-06-27
 
-First **release candidate**. Adds Home Assistant integration, internet
-(over-the-air) updates, and buyer-friendly Wi-Fi setup.
+Primera **versión candidata**. Añade integración con Home Assistant, actualizaciones por internet (OTA) y configuración Wi-Fi simplificada.
 
-### Added
-- **Home Assistant over MQTT** with auto-discovery (glucose, trend, delta,
-  estimated A1C), plus a 4th "HA control" page that publishes announce / light /
-  snooze / two spare commands for your own automations to act on.
-- **Internet OTA updates** — the panel checks a per-board `manifest.json` daily
-  (and on demand) and updates itself from the GitHub release; no USB required.
-- **Wi-Fi provisioning (captive portal)** so a panel can be set up without
-  flashing: it opens a `glucoscout-XXXX` access point on first boot.
-- **4-page swipe UI** — dashboard, big-glucose, device info, and HA control;
-  long-press still opens Settings.
-- On-screen IP address, a factory-reset button, and a `/dbg` diagnostics endpoint.
-- A "Home Assistant (MQTT)" card in the web config.
+### Añadido
+- **Integración de Home Assistant mediante MQTT** con descubrimiento automático (glucosa, tendencia, variación y GMI estimada), además de una cuarta página de «Control de HA» que publica comandos de aviso, luz, posponer y dos comandos adicionales para automatizaciones propias.
+- **Actualizaciones OTA por internet:** el panel consulta diariamente un archivo `manifest.json` específico de cada placa (también se puede solicitar manualmente) y se actualiza desde una versión publicada en GitHub, sin necesidad de USB.
+- **Configuración Wi-Fi mediante portal cautivo:** permite configurar el panel sin volver a flashearlo; en el primer arranque crea un punto de acceso `glucoscout-XXXX`.
+- **Interfaz de cuatro páginas con deslizamiento:** panel, glucosa ampliada, información del dispositivo y control de Home Assistant. Mantener pulsado sigue abriendo Ajustes.
+- Dirección IP en pantalla, botón para restablecer los valores de fábrica y endpoint de diagnóstico `/dbg`.
+- Tarjeta «Home Assistant (MQTT)» en la configuración web.
 
-### Changed
-- Slimmer firmware: the SD photo-frame was removed and the config page is sent
-  more efficiently (about 10% of flash, 17% of RAM).
+### Cambiado
+- Firmware más compacto: se eliminó el marco de fotos con tarjeta SD y la página de configuración se envía de forma más eficiente (aproximadamente un 10 % menos de uso de flash y un 17 % menos de RAM).
 
-### Fixed
-- Weather sometimes showed blank — open-meteo replies with chunked
-  transfer-encoding, which the streaming parser couldn't read; the body is now
-  read fully before parsing.
-- MQTT never connected (state -2): the broker hostname is now kept in a
-  persistent buffer (the client library stored the pointer, not a copy).
-- The config page could truncate when some fields were empty.
+### Corregido
+- **La meteorología podía aparecer en blanco:** Open-Meteo responde con transferencia fragmentada (`chunked transfer-encoding`), que el analizador de flujo no podía leer. Ahora se lee el cuerpo completo antes de analizarlo.
+- **MQTT no llegaba a conectar (estado -2):** el nombre del servidor del broker se conserva ahora en un búfer persistente; la biblioteca guardaba el puntero en vez de una copia.
+- **La página de configuración podía truncarse** cuando algunos campos estaban vacíos.
 
-### Notes
-- **Release candidate** (`1.0.0-rc1`). Not a medical device — see
-  [DISCLAIMER.md](DISCLAIMER.md).
+### Notas
+- **Versión candidata** (`1.0.0-rc1`). No es un dispositivo médico; consulta el [aviso médico](DISCLAIMER.md).
 
 ## [1.0.0-beta.2] - 2026-06-25
 
-### Fixed
-- **Long-run stability (crash after several hours).** Root cause was
-  internal-heap *fragmentation*, not a leak: each poll allocated a TLS buffer +
-  a `DynamicJsonDocument` + the full response `String` in the scarce internal
-  heap, and over hours the largest contiguous block shrank below what the next
-  allocation needed, tripping the task watchdog. Fixes:
-  - JSON documents now allocate in **PSRAM** (ArduinoJson v7 custom allocator).
-  - Nightscout/weather responses are **parsed directly from the TLS stream**
-    (no large internal response `String`).
-  - A **graceful low-memory reboot** triggers a clean ~5 s restart before any
-    hard freeze, as a safety net.
+### Corregido
+- **Estabilidad en ejecuciones largas (bloqueo después de varias horas).** La causa era la fragmentación de la memoria interna, no una fuga: cada consulta asignaba un búfer TLS, un `DynamicJsonDocument` y una cadena `String` con la respuesta completa en la limitada memoria interna. Con el paso de las horas, el mayor bloque contiguo disponible se reducía hasta que fallaba la siguiente asignación y se activaba el watchdog de la tarea. Soluciones:
+  - Los documentos JSON ahora se asignan en **PSRAM** mediante un asignador personalizado de ArduinoJson v7.
+  - Las respuestas de Nightscout y meteorología se **analizan directamente desde el flujo TLS**, sin crear una gran cadena interna con toda la respuesta.
+  - Como medida de protección, se activa un **reinicio controlado cuando queda poca memoria**, antes de que el dispositivo se bloquee por completo.
 
 ## [1.0.0-beta.1] - 2026-06-25
 
-First public **beta** release.
+Primera versión **beta pública**.
 
-### Added
-- ESP32-S3 glucose dashboard for the GUITION JC3248W535C 3.5" panel
-  (`boards/esp32-s3/guition-3.5in/`): Nightscout polling, current value + trend
-  arrow, recent history graph, and an on-device Wi-Fi/Nightscout config UI.
-- Wi-Fi and Nightscout credentials isolated in a git-ignored `secrets.h`, with
-  a committed `secrets.example.h` template.
-- Hardware reference for the JC3248W535C (`docs/`).
-- Project scaffolding: MIT license, medical disclaimer, contribution and
-  security policies, issue/PR templates, and CI.
+### Añadido
+- Panel de glucosa para ESP32-S3 y pantalla GUITION JC3248W535C de 3,5 pulgadas (`boards/esp32-s3/guition-3.5in/`): consultas a Nightscout, valor actual con flecha de tendencia, gráfico del historial reciente e interfaz de configuración de Wi-Fi/Nightscout en el dispositivo.
+- Credenciales de Wi-Fi y Nightscout aisladas en `secrets.h`, excluido de Git, con una plantilla `secrets.example.h` incluida en el repositorio.
+- Referencia de hardware para la JC3248W535C en `docs/`.
+- Estructura inicial del proyecto: licencia MIT, aviso médico, políticas de contribución y seguridad, plantillas de incidencias/solicitudes de cambios y CI.
 
-### Notes
-- **Beta:** interfaces and layout may change before `1.0.0`. Not a medical
-  device — see [DISCLAIMER.md](DISCLAIMER.md).
-- ESP32-P4 (GUITION 10.1") support is in progress and not part of this release.
+### Notas
+- **Beta:** las interfaces y el diseño pueden cambiar antes de la versión `1.0.0`. No es un dispositivo médico; consulta el [aviso médico](DISCLAIMER.md).
+- La compatibilidad con ESP32-P4 (GUITION de 10,1 pulgadas) está en desarrollo y no forma parte de esta versión.
 
-[Unreleased]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-rc1...HEAD
+[Sin publicar]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-rc1...HEAD
 [1.0.0-rc1]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-beta.2...v1.0.0-rc1
 [1.0.0-beta.2]: https://github.com/getglucoscout/esp32-cgm/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/getglucoscout/esp32-cgm/releases/tag/v1.0.0-beta.1
