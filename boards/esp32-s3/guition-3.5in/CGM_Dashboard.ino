@@ -64,7 +64,7 @@ struct DashConfig {
     int    mqttPort;                     // default 1883
     String wifiSsid, wifiPass;           // WiFi STA creds (blank -> secrets.h fallback)
 };
-DashConfig cfg = {100,20,1,7,10000,70,280, 0,
+DashConfig cfg = {100,20,1,7,10000,70,280, false,0,
                   "40.7128","-74.0060","New York",false,"EST5EDT,M3.2.0,M11.1.0",
                   "","","us", "","","us", "","", "","","",1883, "",""};
 
