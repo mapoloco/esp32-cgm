@@ -6,7 +6,13 @@ Aquí se documentan los cambios importantes de este proyecto. El formato se basa
 
 ## [Sin publicar]
 
-Los cambios futuros se anotarán aquí.
+### Añadido
+- **Panel Big Glucose:** nueva opción de diseño desde la configuración web, con glucosa destacada, flecha de tendencia, variación, gráfico inferior y barra de actualización de 10 segundos.
+- **Inversión de colores con el sol:** el mismo panel alterna entre fondo verde `#35DE84` con elementos negros y fondo negro con elementos verdes y claros.
+- Se conservan los umbrales de glucosa crítica y los avisos `LOW!` / `HIGH!` ya implementados.
+
+### Pendiente de validación
+- La nueva revisión del firmware está publicada, pero todavía no se ha confirmado una compilación completa ni una prueba física en la GUITION JC3248W535C.
 
 ## [1.0.0-rc3.1] - 2026-10-19
 
