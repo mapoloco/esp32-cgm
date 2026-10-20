@@ -11,8 +11,8 @@ Aquí se documentan los cambios importantes de este proyecto. El formato se basa
 - **Inversión de colores con el sol:** el mismo panel alterna entre fondo verde `#35DE84` con elementos negros y fondo negro con elementos verdes y claros.
 - Se conservan los umbrales de glucosa crítica y los avisos `LOW!` / `HIGH!` ya implementados.
 
-### Pendiente de validación
-- La nueva revisión del firmware está publicada, pero todavía no se ha confirmado una compilación completa ni una prueba física en la GUITION JC3248W535C.
+### Validación
+- El mantenedor confirma que el firmware publicado se ha probado y funciona en su pantalla GUITION JC3248W535C.
 
 ## [1.0.0-rc3.1] - 2026-10-19
 
